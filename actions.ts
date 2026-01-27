@@ -16,7 +16,7 @@ export async function loginAction(formData: FormData): Promise<void> {
         redirect("/login?error=" + encodeURIComponent("PIN must be at least 4 digits."));
     }
 
-    const { rows } = await sql`
+    const rows = await sql`
     select employee_id, pin_hash, active
     from users
     where employee_id = ${employeeId}

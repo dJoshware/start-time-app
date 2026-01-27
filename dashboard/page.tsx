@@ -17,7 +17,7 @@ export default async function DashboardPage() {
 
     const workDate = todayISO();
 
-    const { rows: stRows } = await sql`
+    const stRows = await sql`
     select work_date, start_time, notes, updated_at
     from start_times
     where employee_id = ${user.employee_id}
@@ -25,7 +25,7 @@ export default async function DashboardPage() {
     limit 1
   `;
 
-    const { rows: annRows } = await sql`
+    const annRows = await sql`
     select message, updated_at, updated_by
     from announcements
     order by updated_at desc

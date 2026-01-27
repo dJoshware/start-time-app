@@ -8,7 +8,7 @@ export default async function SupervisorPage() {
     if (!user) redirect("/login");
     if (user.role !== "supervisor") redirect("/dashboard");
 
-    const { rows: recent } = await sql`
+    const recent = await sql`
     select employee_id, work_date, start_time, notes, updated_at, updated_by
     from start_times
     order by updated_at desc

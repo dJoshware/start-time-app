@@ -40,7 +40,7 @@ export async function getSessionUser() {
     const ageMs = Date.now() - Number(ts);
     if (Number.isNaN(ageMs) || ageMs > 7 * 24 * 60 * 60 * 1000) return null;
 
-    const { rows } = await sql`
+    const rows = await sql`
     select employee_id, role, full_name, active
     from users
     where employee_id = ${employeeId}
