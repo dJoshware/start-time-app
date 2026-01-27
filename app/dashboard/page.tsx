@@ -1,9 +1,11 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { getSessionUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function todayISO() {
     const d = new Date();
@@ -14,6 +16,7 @@ function todayISO() {
 }
 
 export default async function DashboardPage() {
+    noStore();
     const user = await getSessionUser();
     if (!user) redirect("/login");
 

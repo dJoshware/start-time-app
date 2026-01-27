@@ -1,11 +1,14 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { getSessionUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { setAnnouncementAction, upsertStartTimeAction } from "@/actions";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function SupervisorPage() {
+    noStore();
     const user = await getSessionUser();
     if (!user) redirect("/login");
     if (user.role !== "supervisor") redirect("/dashboard");
