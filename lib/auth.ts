@@ -4,7 +4,6 @@ import { sql } from './db';
 
 const COOKIE_NAME = 'st_session';
 const SECRET = process.env.SESSION_SECRET!;
-const c = await cookies();
 
 function sign(payload: string) {
     return crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
@@ -13,6 +12,8 @@ function sign(payload: string) {
 export async function setSession(employeeId: string) {
     const payload = `${employeeId}.${Date.now()}`;
     const sig = sign(payload);
+
+    const c = await cookies();
     c.set(COOKIE_NAME, `${payload}.${sig}`, {
         httpOnly: true,
         sameSite: 'lax',
@@ -22,10 +23,12 @@ export async function setSession(employeeId: string) {
 }
 
 export async function clearSession() {
+    const c = await cookies();
     c.set(COOKIE_NAME, '', { path: '/', maxAge: 0 });
 }
 
 export async function getSessionUser() {
+    const c = await cookies();
     const raw = c.get(COOKIE_NAME)?.value;
     if (!raw) return null;
 
@@ -36,7 +39,6 @@ export async function getSessionUser() {
     const payload = `${employeeId}.${ts}`;
     if (sign(payload) !== sig) return null;
 
-    // Optional: expire sessions after 7 days
     const ageMs = Date.now() - Number(ts);
     if (Number.isNaN(ageMs) || ageMs > 7 * 24 * 60 * 60 * 1000) return null;
 
@@ -46,6 +48,7 @@ export async function getSessionUser() {
     where employee_id = ${employeeId}
     limit 1
   `;
+
     const user = rows[0];
     if (!user?.active) return null;
 
