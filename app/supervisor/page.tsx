@@ -3,6 +3,8 @@ import { sql } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { setAnnouncementAction, upsertStartTimeAction } from "@/actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function SupervisorPage() {
     const user = await getSessionUser();
     if (!user) redirect("/login");

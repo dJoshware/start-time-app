@@ -3,6 +3,8 @@ import { sql } from "@/lib/db";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 function todayISO() {
     const d = new Date();
     const yyyy = d.getFullYear();
