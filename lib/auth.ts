@@ -14,10 +14,11 @@ export async function setSession(employeeId: string) {
     const sig = sign(payload);
 
     const c = await cookies();
+
     c.set(COOKIE_NAME, `${payload}.${sig}`, {
         httpOnly: true,
         sameSite: 'lax',
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
         path: '/',
     });
 }
@@ -29,6 +30,7 @@ export async function clearSession() {
 
 export async function getSessionUser() {
     const c = await cookies();
+
     const raw = c.get(COOKIE_NAME)?.value;
     if (!raw) return null;
 
@@ -48,7 +50,6 @@ export async function getSessionUser() {
     where employee_id = ${employeeId}
     limit 1
   `;
-
     const user = rows[0];
     if (!user?.active) return null;
 

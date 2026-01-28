@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# scripts
+# Usage: "npx ts-node lib/add-user.ts"
+*add-user.ts
