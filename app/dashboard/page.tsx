@@ -13,35 +13,68 @@ import { Separator } from "@/components/ui/separator";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-function dateISO(d: Date) {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
+const TZ = "America/Chicago";
+
+function tzParts(d = new Date()) {
+    const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: TZ,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(d);
+
+    const get = (type: string) => parts.find(p => p.type === type)?.value ?? "";
+    return { y: get("year"), m: get("month"), day: get("day") };
 }
 
-function addDays(d: Date, days: number) {
-    const x = new Date(d);
-    x.setDate(x.getDate() + days);
-    return x;
+function todayISOChicago() {
+    const { y, m, day } = tzParts(new Date());
+    return `${y}-${m}-${day}`;
 }
 
-function startOfWeekMonday(d: Date) {
-    // Monday-based week (Mon-Sun)
-    const x = new Date(d);
-    const day = x.getDay(); // 0=Sun,1=Mon,...6=Sat
+// Make a Date object that is "noon UTC" for an ISO date.
+// This avoids off-by-one issues when formatting a date-only value.
+function dateFromISO(iso: string) {
+    return new Date(`${iso}T12:00:00Z`);
+}
+
+function addDaysISO(iso: string, days: number) {
+    const d = dateFromISO(iso);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+}
+
+function startOfWeekMondayISO(iso: string) {
+    const d = dateFromISO(iso);
+    const day = d.getUTCDay(); // 0=Sun..6=Sat
     const diff = day === 0 ? -6 : 1 - day;
-    x.setDate(x.getDate() + diff);
-    x.setHours(0, 0, 0, 0);
-    return x;
+    d.setUTCDate(d.getUTCDate() + diff);
+    return d.toISOString().slice(0, 10);
 }
 
-function dayLabel(d: Date) {
-    return d.toLocaleDateString(undefined, { weekday: "short" });
+function dayLabelISO(iso: string) {
+    return new Intl.DateTimeFormat("en-US", {
+        timeZone: TZ,
+        weekday: "short",
+    }).format(dateFromISO(iso));
 }
 
-function monthDay(d: Date) {
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+function monthDayISO(iso: string) {
+    return new Intl.DateTimeFormat("en-US", {
+        timeZone: TZ,
+        month: "short",
+        day: "numeric",
+    }).format(dateFromISO(iso));
+}
+
+function fmtUpdatedAt(value: Date | string) {
+    return new Date(value).toLocaleString("en-US", {
+        timeZone: TZ,
+        hour: "numeric",
+        minute: "2-digit",
+        month: "2-digit",
+        day: "2-digit",
+    });
 }
 
 export default async function DashboardPage() {
@@ -50,14 +83,10 @@ export default async function DashboardPage() {
     const user = await getSessionUser();
     if (!user) redirect("/login");
 
-    const today = new Date();
-    const todayIso = dateISO(today);
+    const todayIso = todayISOChicago();
 
-    const weekStart = startOfWeekMonday(today);
-    const weekEnd = addDays(weekStart, 6);
-
-    const weekStartIso = dateISO(weekStart);
-    const weekEndIso = dateISO(weekEnd);
+    const weekStartIso = startOfWeekMondayISO(todayIso);
+    const weekEndIso = addDaysISO(weekStartIso, 6);
 
     // Fetch start times for this week
     const weekRows = await sql<
@@ -106,20 +135,29 @@ export default async function DashboardPage() {
 
     const ann = annRows[0];
 
+    function isoFromDbDate(value: Date | string) {
+        // If Postgres returns "YYYY-MM-DD" as a string, keep it.
+        if (typeof value === "string") return value.slice(0, 10);
+
+        // If it returns a Date, convert using UTC date parts.
+        const y = value.getUTCFullYear();
+        const m = String(value.getUTCMonth() + 1).padStart(2, "0");
+        const d = String(value.getUTCDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+    }
+
     // Map start_times by date string for quick lookup
     const byDate = new Map<string, (typeof weekRows)[number]>();
     for (const r of weekRows) {
         // work_date comes back as Date in many drivers; normalize
-        const iso = dateISO(new Date(r.work_date));
+        const iso = isoFromDbDate(r.work_date);
         byDate.set(iso, r);
     }
 
-    const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)).map(
-        d => {
-            const iso = dateISO(d);
-            return { d, iso, row: byDate.get(iso) };
-        },
-    );
+    const days = Array.from({ length: 7 }, (_, i) => {
+        const iso = addDaysISO(weekStartIso, i);
+        return { iso, row: byDate.get(iso) };
+    });
 
     const todayRow = byDate.get(todayIso);
 
@@ -132,7 +170,8 @@ export default async function DashboardPage() {
                         Hi{user.full_name ? `, ${user.full_name}` : ""}
                     </h1>
                     <p className='text-sm text-muted-foreground'>
-                        Week of {monthDay(weekStart)} – {monthDay(weekEnd)}
+                        Week of {monthDayISO(weekStartIso)} –{" "}
+                        {monthDayISO(weekEndIso)}
                     </p>
                 </div>
 
@@ -155,13 +194,7 @@ export default async function DashboardPage() {
                         <div className='text-sm'>{ann.message}</div>
                         <div className='text-xs text-muted-foreground'>
                             Updated{" "}
-                            {new Date(ann.updated_at).toLocaleString("en-US", {
-                                timeZone: "America/Chicago",
-                                hour: "numeric",
-                                minute: "2-digit",
-                                month: "2-digit",
-                                day: "2-digit",
-                            })}
+                            {fmtUpdatedAt(ann.updated_at)}
                             {" • "}
                             Posted by{" "}
                             {ann.updated_by_name || ann.updated_by || "unknown"}
@@ -183,20 +216,14 @@ export default async function DashboardPage() {
 
                 {/* Horizontal scroll on small screens */}
                 <div className='flex gap-4 overflow-x-auto pb-2'>
-                    {days.map(({ d, iso, row }) => {
+                    {days.map(({ iso, row }) => {
                         const isToday = iso === todayIso;
 
                         const time = row?.start_time
                             ? String(row.start_time).slice(0, 5)
                             : null;
                         const updatedAt = row?.updated_at
-                            ? new Date(ann.updated_at).toLocaleString("en-US", {
-                                  timeZone: "America/Chicago",
-                                  hour: "numeric",
-                                  minute: "2-digit",
-                                  month: "2-digit",
-                                  day: "2-digit",
-                              })
+                            ? fmtUpdatedAt(row.updated_at)
                             : null;
 
                         return (
@@ -212,9 +239,9 @@ export default async function DashboardPage() {
                                 <CardHeader className='space-y-2'>
                                     <div className='flex items-center justify-between'>
                                         <CardTitle className='text-base'>
-                                            {dayLabel(d)}{" "}
+                                            {dayLabelISO(iso)}{" "}
                                             <span className='text-muted-foreground font-normal'>
-                                                {monthDay(d)}
+                                                {monthDayISO(iso)}
                                             </span>
                                         </CardTitle>
                                         {isToday ? <Badge>Today</Badge> : null}
