@@ -41,5 +41,5 @@ yarn-error.log*
 next-env.d.ts
 
 # scripts
-# Usage: "npx ts-node lib/add-user.ts"
+# Usage: "npx ts-node lib/add-user.ts --id 7255540 --pin 5540 --role supervisor --name "Joshua Ellis"
 *add-user.ts

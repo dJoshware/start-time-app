@@ -3,7 +3,11 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import type { RecentRow } from "./page";
-import { setAnnouncementAction, upsertPreloadStartTimeAction } from "@/actions";
+import {
+    setAnnouncementAction,
+    upsertPreloadStartTimeAction,
+    upsertUserAction,
+} from "@/actions";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,6 +41,10 @@ export default function SupervisorClient({
     );
     const [stState, stAction, stPending] = useActionState(
         upsertPreloadStartTimeAction,
+        null,
+    );
+    const [userState, userAction, userPending] = useActionState(
+        upsertUserAction,
         null,
     );
 
@@ -172,6 +180,93 @@ export default function SupervisorClient({
                 </CardContent>
             </Card>
 
+            {/* Add new users */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className='text-base'>
+                        Add/Update User
+                    </CardTitle>
+                    <p className='text-sm text-muted-foreground'>
+                        Creates a login for an employee. If the ID already
+                        exists, it updates their info.
+                    </p>
+                </CardHeader>
+
+                <CardContent className='space-y-3'>
+                    {userState?.ok === false ? (
+                        <Alert>
+                            <AlertTitle>Couldn’t save user</AlertTitle>
+                            <AlertDescription>
+                                {userState.message}
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    {userState?.ok === true ? (
+                        <Alert>
+                            <AlertTitle>Saved</AlertTitle>
+                            <AlertDescription>
+                                {userState.message}
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    <form
+                        action={userAction}
+                        className='grid gap-3 md:grid-cols-2'>
+                        <div className='space-y-1'>
+                            <Label htmlFor='employeeIdNew'>Employee ID</Label>
+                            <Input
+                                id='employeeIdNew'
+                                name='employeeId'
+                                inputMode='numeric'
+                                placeholder='1234567'
+                            />
+                        </div>
+
+                        <div className='space-y-1'>
+                            <Label htmlFor='fullNameNew'>Full name</Label>
+                            <Input
+                                id='fullNameNew'
+                                name='fullName'
+                                placeholder='First Last'
+                            />
+                        </div>
+
+                        <div className='space-y-1'>
+                            <Label htmlFor='pinNew'>PIN</Label>
+                            <Input
+                                id='pinNew'
+                                name='pin'
+                                type='password'
+                                inputMode='numeric'
+                                placeholder='••••'
+                            />
+                        </div>
+
+                        <div className='space-y-1'>
+                            <Label htmlFor='roleNew'>Role</Label>
+                            <select
+                                id='roleNew'
+                                name='role'
+                                className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'
+                                defaultValue='employee'>
+                                <option value='employee'>Employee</option>
+                                <option value='supervisor'>Supervisor</option>
+                            </select>
+                        </div>
+
+                        <div className='md:col-span-2'>
+                            <Button
+                                type='submit'
+                                disabled={userPending}>
+                                {userPending ? "Saving..." : "Save User"}
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
+
             {/* Recent */}
             <Card>
                 <CardHeader className='flex-row items-center justify-between space-y-0'>
@@ -206,7 +301,7 @@ export default function SupervisorClient({
                                         </TableCell>
                                         <TableCell>
                                             {new Date(
-                                                r.updated_at
+                                                r.updated_at,
                                             ).toLocaleString("en-US", {
                                                 timeZone: "America/Chicago",
                                                 year: "numeric",

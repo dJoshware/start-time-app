@@ -5,6 +5,10 @@ import { sql } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { setSession, getSessionUser } from '@/lib/auth';
 
+function bad(message: string) {
+    return { ok: false as const, message };
+}
+
 export type LoginState =
     | { ok: true }
     | { ok: false; message: string; field?: 'employeeId' | 'pin' };
@@ -112,4 +116,40 @@ export async function loginAction(
 
     // If you want to redirect after success, do it here:
     redirect('/dashboard');
+}
+
+export async function upsertUserAction(_prev: any, formData: FormData) {
+    const me = await getSessionUser();
+    if (!me) return bad('Not signed in.');
+    if (me.role !== 'supervisor') return bad('Supervisor access required.');
+
+    const employeeId = String(formData.get('employeeId') || '').trim();
+    const pin = String(formData.get('pin') || '').trim();
+    const role = String(formData.get('role') || '').trim() as
+        | 'employee'
+        | 'supervisor';
+    const fullName = String(formData.get('fullName') || '').trim();
+
+    if (!/^\d{7}$/.test(employeeId))
+        return bad('Employee ID must be exactly 7 digits.');
+    if (!/^\d{4,8}$/.test(pin)) return bad('PIN must be 4–8 digits.');
+    if (role !== 'employee' && role !== 'supervisor')
+        return bad('Role must be employee or supervisor.');
+
+    const pinHash = await bcrypt.hash(pin, 10);
+
+    await sql`
+    insert into users (employee_id, pin_hash, role, full_name)
+    values (${employeeId}, ${pinHash}, ${role}, ${fullName || null})
+    on conflict (employee_id) do update
+      set pin_hash = excluded.pin_hash,
+          role = excluded.role,
+          full_name = excluded.full_name,
+          active = true
+  `;
+
+    return {
+        ok: true as const,
+        message: `Saved user ${employeeId} (${role}).`,
+    };
 }
