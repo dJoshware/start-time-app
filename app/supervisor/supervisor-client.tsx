@@ -133,7 +133,7 @@ export default function SupervisorClient({
                             <Input
                                 id='workDate'
                                 name='workDate'
-                                type="date"
+                                type='date'
                                 // placeholder='YYYY-MM-DD'
                                 required
                             />
@@ -144,7 +144,7 @@ export default function SupervisorClient({
                             <Input
                                 id='startTime'
                                 name='startTime'
-                                type="time"
+                                type='time'
                                 // placeholder='HH:MM'
                                 required
                             />
@@ -206,8 +206,15 @@ export default function SupervisorClient({
                                         </TableCell>
                                         <TableCell>
                                             {new Date(
-                                                r.updated_at,
-                                            ).toLocaleString()}
+                                                r.updated_at
+                                            ).toLocaleString("en-US", {
+                                                timeZone: "America/Chicago",
+                                                year: "numeric",
+                                                month: "2-digit",
+                                                day: "2-digit",
+                                                hour: "numeric",
+                                                minute: "2-digit",
+                                            })}
                                         </TableCell>
                                         <TableCell>
                                             {r.updated_by_name ||

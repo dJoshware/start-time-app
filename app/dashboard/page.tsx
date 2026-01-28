@@ -154,7 +154,14 @@ export default async function DashboardPage() {
                     <AlertDescription className='mt-2 space-y-2'>
                         <div className='text-sm'>{ann.message}</div>
                         <div className='text-xs text-muted-foreground'>
-                            Updated {new Date(ann.updated_at).toLocaleString()}
+                            Updated{" "}
+                            {new Date(ann.updated_at).toLocaleString("en-US", {
+                                timeZone: "America/Chicago",
+                                hour: "numeric",
+                                minute: "2-digit",
+                                month: "2-digit",
+                                day: "2-digit",
+                            })}
                             {" • "}
                             Posted by{" "}
                             {ann.updated_by_name || ann.updated_by || "unknown"}
@@ -183,7 +190,13 @@ export default async function DashboardPage() {
                             ? String(row.start_time).slice(0, 5)
                             : null;
                         const updatedAt = row?.updated_at
-                            ? new Date(row.updated_at).toLocaleString()
+                            ? new Date(ann.updated_at).toLocaleString("en-US", {
+                                  timeZone: "America/Chicago",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                  month: "2-digit",
+                                  day: "2-digit",
+                              })
                             : null;
 
                         return (
