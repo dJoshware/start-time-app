@@ -183,7 +183,6 @@ export default function SupervisorClient({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Employee</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Time</TableHead>
                                     <TableHead>Notes</TableHead>
@@ -196,9 +195,6 @@ export default function SupervisorClient({
                                 {recent.map(r => (
                                     <TableRow
                                         key={`${r.employee_id}-${String(r.work_date)}`}>
-                                        <TableCell className='font-medium'>
-                                            {r.employee_id}
-                                        </TableCell>
                                         <TableCell>
                                             {String(r.work_date).slice(0, 10)}
                                         </TableCell>
