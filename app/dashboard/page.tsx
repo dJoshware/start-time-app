@@ -93,9 +93,7 @@ export default async function DashboardPage() {
 
     const user = await getSessionUser();
     if (!user) redirect("/login");
-
     const todayIso = todayISOChicago();
-
     const weekStartIso = startOfWeekMondayISO(todayIso);
     const weekEndIso = addDaysISO(weekStartIso, 6);
 
@@ -170,15 +168,10 @@ export default async function DashboardPage() {
         return { iso, row: byDate.get(iso) };
     });
 
-    const todayRow = byDate.get(todayIso);
-
     const hourNow = chicagoHour();
     const isAfterSort = hourNow >= BUSINESS_DAY_CUTOFF_HOUR;
-
     const detailIso = isAfterSort ? addDaysISO(todayIso, 1) : todayIso;
-
     const detailLabel = isAfterSort ? "Tomorrow" : "Today";
-
     const detailRow = byDate.get(detailIso);
 
     return (
@@ -187,7 +180,7 @@ export default async function DashboardPage() {
             <header className='flex items-start justify-between gap-4'>
                 <div>
                     <h1 className='text-2xl font-semibold tracking-tight'>
-                        Hi{user.full_name ? `, ${user.full_name}` : ""}
+                        Hi{user.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}
                     </h1>
                     <p className='text-sm text-muted-foreground'>
                         Week of {monthDayISO(weekStartIso)} –{" "}
@@ -226,7 +219,7 @@ export default async function DashboardPage() {
             <section className='space-y-3'>
                 <div className='flex items-center justify-between'>
                     <h2 className='text-lg font-semibold tracking-tight'>
-                        This week
+                        This week - Preload {/** Change to {sort} query */}
                     </h2>
                     <span className='text-xs text-muted-foreground'>
                         Today is highlighted
@@ -237,7 +230,6 @@ export default async function DashboardPage() {
                 <div className='flex gap-4 overflow-x-auto pb-2'>
                     {days.map(({ iso, row }) => {
                         const isToday = iso === todayIso;
-
                         const time = row?.start_time
                             ? String(row.start_time).slice(0, 5)
                             : null;
@@ -307,8 +299,8 @@ export default async function DashboardPage() {
                 <Card className='border-primary/30'>
                     <CardHeader>
                         <CardTitle className='text-base flex items-center justify-between'>
-                            {detailLabel} ({detailIso})
-                            <Badge variant={isAfterSort ? 'outline' : 'secondary'}>
+                            {detailLabel} ({monthDayISO(detailIso)})
+                            <Badge className={isAfterSort ? "bg-yellow-300 text-slate-950" : "bg-bg-green-400 text-slate-950"}>
                                 {isAfterSort ? 'Next Sort' : 'Current Sort'}
                             </Badge>
                         </CardTitle>
