@@ -17,6 +17,15 @@ export type RecentRow = {
     updated_by_name: string | null;
 };
 
+export type EmployeeRow = {
+    employee_id: string;
+    full_name: string | null;
+    role: "employee" | "supervisor";
+    active: boolean;
+    created_at: Date | string;
+    // no area in DB yet, we’ll assume preload in UI
+};
+
 export default async function SupervisorPage() {
     noStore();
 
@@ -40,11 +49,19 @@ export default async function SupervisorPage() {
         limit 20
     `;
 
+    const employees = await sql<EmployeeRow[]>`
+        select employee_id, full_name, role, active, created_at
+        from users
+        order by created_at desc
+        limit 500
+    `;
+
     return (
         <SupervisorClient
             supervisorId={user.employee_id}
-            supervisorName={user.full_name ?? user.employee_id}
+            supervisorName={user.full_name ?? 'Supervisor'}
             recent={recent}
+            employees={employees}
         />
     );
 }
