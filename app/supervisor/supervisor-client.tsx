@@ -442,7 +442,7 @@ export default function SupervisorClient({
                                         </TableCell>
                                         <TableCell>{e.employee_id}</TableCell>
                                         <TableCell>Preload</TableCell>
-                                        <TableCell>{e.role.toUpperCase()}</TableCell>
+                                        <TableCell className="capitalize">{e.role}</TableCell>
                                         <TableCell>
                                             {e.active ? (
                                                 <Badge variant='secondary'>
