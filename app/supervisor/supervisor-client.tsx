@@ -51,10 +51,10 @@ export default function SupervisorClient({
     );
     const [qName, setQName] = useState("");
     const [qId, setQId] = useState("");
-    const [qRole, setQRole] = useState<"" | "employee" | "supervisor">("");
-    const [qActive, setQActive] = useState<"" | "active" | "inactive">("");
+    const [qRole, setQRole] = useState<"" | "Employee" | "Supervisor">("");
+    const [qActive, setQActive] = useState<"" | "Active" | "Inactive">("");
     // Area is assumed preload for now
-    const qArea = "preload";
+    const qArea = "Preload";
 
     const filteredEmployees = useMemo(() => {
         const name = qName.trim().toLowerCase();
@@ -66,11 +66,11 @@ export default function SupervisorClient({
             if (name && !fullName.includes(name)) return false;
             if (id && !e.employee_id.includes(id)) return false;
             if (qRole && e.role !== qRole) return false;
-            if (qActive === "active" && !e.active) return false;
-            if (qActive === "inactive" && e.active) return false;
+            if (qActive === "Active" && !e.active) return false;
+            if (qActive === "Inactive" && e.active) return false;
 
             // area assumed preload
-            if (qArea && qArea !== "preload") return false;
+            if (qArea && qArea !== "Preload") return false;
 
             return true;
         });

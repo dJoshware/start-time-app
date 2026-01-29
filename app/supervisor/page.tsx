@@ -20,7 +20,7 @@ export type RecentRow = {
 export type EmployeeRow = {
     employee_id: string;
     full_name: string | null;
-    role: "employee" | "supervisor";
+    role: "Employee" | "Supervisor";
     active: boolean;
     created_at: Date | string;
     // no area in DB yet, we’ll assume preload in UI
