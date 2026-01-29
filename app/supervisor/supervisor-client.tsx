@@ -441,16 +441,16 @@ export default function SupervisorClient({
                                             {e.full_name ?? "—"}
                                         </TableCell>
                                         <TableCell>{e.employee_id}</TableCell>
-                                        <TableCell>preload</TableCell>
+                                        <TableCell>Preload</TableCell>
                                         <TableCell>{e.role}</TableCell>
                                         <TableCell>
                                             {e.active ? (
                                                 <Badge variant='secondary'>
-                                                    active
+                                                    Active
                                                 </Badge>
                                             ) : (
                                                 <Badge variant='outline'>
-                                                    inactive
+                                                    Inactive
                                                 </Badge>
                                             )}
                                         </TableCell>
