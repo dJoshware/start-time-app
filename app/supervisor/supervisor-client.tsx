@@ -393,8 +393,8 @@ export default function SupervisorClient({
                                 value={qRole}
                                 onChange={e => setQRole(e.target.value as any)}>
                                 <option value=''>All</option>
-                                <option value='Employee'>Employee</option>
-                                <option value='Supervisor'>Supervisor</option>
+                                <option value='employee'>Employee</option>
+                                <option value='supervisor'>Supervisor</option>
                             </select>
                         </div>
 
@@ -442,7 +442,7 @@ export default function SupervisorClient({
                                         </TableCell>
                                         <TableCell>{e.employee_id}</TableCell>
                                         <TableCell>Preload</TableCell>
-                                        <TableCell>{e.role}</TableCell>
+                                        <TableCell>{e.role.toUpperCase()}</TableCell>
                                         <TableCell>
                                             {e.active ? (
                                                 <Badge variant='secondary'>
