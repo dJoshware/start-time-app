@@ -376,7 +376,7 @@ export default function SupervisorClient({
                             <Label htmlFor='filterId'>Employee ID</Label>
                             <Input
                                 id='filterId'
-                                placeholder='7255540'
+                                placeholder='1234567'
                                 inputMode='numeric'
                                 value={qId}
                                 onChange={e =>
@@ -393,8 +393,8 @@ export default function SupervisorClient({
                                 value={qRole}
                                 onChange={e => setQRole(e.target.value as any)}>
                                 <option value=''>All</option>
-                                <option value='employee'>Employee</option>
-                                <option value='supervisor'>Supervisor</option>
+                                <option value='Employee'>Employee</option>
+                                <option value='Supervisor'>Supervisor</option>
                             </select>
                         </div>
 
