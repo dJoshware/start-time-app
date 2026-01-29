@@ -13,7 +13,18 @@ import { Separator } from "@/components/ui/separator";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const BUSINESS_DAY_CUTOFF_HOUR = 9; // 9:00 AM
 const TZ = "America/Chicago";
+
+function chicagoHour(d = new Date()) {
+    return Number(
+        new Intl.DateTimeFormat("en-US", {
+            timeZone: TZ,
+            hour: "numeric",
+            hour12: false,
+        }).format(d),
+    );
+}
 
 function tzParts(d = new Date()) {
     const parts = new Intl.DateTimeFormat("en-US", {
@@ -161,6 +172,15 @@ export default async function DashboardPage() {
 
     const todayRow = byDate.get(todayIso);
 
+    const hourNow = chicagoHour();
+    const isAfterSort = hourNow >= BUSINESS_DAY_CUTOFF_HOUR;
+
+    const detailIso = isAfterSort ? addDaysISO(todayIso, 1) : todayIso;
+
+    const detailLabel = isAfterSort ? "Tomorrow" : "Today";
+
+    const detailRow = byDate.get(detailIso);
+
     return (
         <main className='mx-auto w-full max-w-5xl px-4 py-10'>
             {/* Header */}
@@ -193,8 +213,7 @@ export default async function DashboardPage() {
                     <AlertDescription className='mt-2 space-y-2'>
                         <div className='text-sm'>{ann.message}</div>
                         <div className='text-xs text-muted-foreground'>
-                            Updated{" "}
-                            {fmtUpdatedAt(ann.updated_at)}
+                            Updated {fmtUpdatedAt(ann.updated_at)}
                             {" • "}
                             Posted by{" "}
                             {ann.updated_by_name || ann.updated_by || "unknown"}
@@ -288,14 +307,16 @@ export default async function DashboardPage() {
                 <Card className='border-primary/30'>
                     <CardHeader>
                         <CardTitle className='text-base flex items-center justify-between'>
-                            Today ({todayIso})
-                            <Badge variant='secondary'>Detail</Badge>
+                            {detailLabel} ({detailIso})
+                            <Badge variant={isAfterSort ? 'outline' : 'secondary'}>
+                                {isAfterSort ? 'Next Sort' : 'Current Sort'}
+                            </Badge>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className='space-y-2'>
-                        {todayRow?.start_time ? (
+                        {detailRow?.start_time ? (
                             <div className='text-3xl font-semibold'>
-                                {String(todayRow.start_time).slice(0, 5)}
+                                {String(detailRow.start_time).slice(0, 5)}
                             </div>
                         ) : (
                             <div className='text-sm text-muted-foreground'>
@@ -303,10 +324,10 @@ export default async function DashboardPage() {
                             </div>
                         )}
 
-                        {todayRow?.notes ? (
+                        {detailRow?.notes ? (
                             <div className='text-sm'>
                                 <span className='font-medium'>Notes:</span>{" "}
-                                {todayRow.notes}
+                                {detailRow.notes}
                             </div>
                         ) : null}
                     </CardContent>
