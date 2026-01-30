@@ -300,7 +300,7 @@ export default async function DashboardPage() {
                     <CardHeader>
                         <CardTitle className='text-base flex items-center justify-between'>
                             {detailLabel} ({monthDayISO(detailIso)})
-                            <Badge className={isAfterSort ? "bg-yellow-300 text-slate-950" : "bg-bg-green-400 text-slate-950"}>
+                            <Badge className={isAfterSort ? "bg-yellow-300 text-slate-950" : "bg-green-400 text-slate-950"}>
                                 {isAfterSort ? 'Next Sort' : 'Current Sort'}
                             </Badge>
                         </CardTitle>
