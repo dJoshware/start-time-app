@@ -170,9 +170,30 @@ export default async function DashboardPage() {
 
     const hourNow = chicagoHour();
     const isAfterSort = hourNow >= BUSINESS_DAY_CUTOFF_HOUR;
-    const detailIso = isAfterSort ? addDaysISO(todayIso, 1) : todayIso;
-    const detailLabel = isAfterSort ? "Tomorrow" : "Today";
+    // Base choice: Today vs Tomorrow
+    const baseIso = isAfterSort ? addDaysISO(todayIso, 1) : todayIso;
+    // If base lands on Sunday, bump to Monday (or next day that isn't Sunday)
+    const detailIso = isSundayISO(baseIso) ? nextNonSundayISO(todayIso) : baseIso;
+    const detailLabel = isAfterSort
+        ? (detailIso === addDaysISO(todayIso, 1) ? "Tomorrow" : "Next Sort")
+        : "Today";
     const detailRow = byDate.get(detailIso);
+
+    function isSundayISO(iso: string) {
+        // Use TZ so "Sunday" matches Chicago, not UTC
+        const weekday = new Intl.DateTimeFormat("en-US", {
+            timeZone: TZ,
+            weekday: "short",
+        }).format(dateFromISO(iso));
+    
+        return weekday === "Sun";
+    }
+
+    function nextNonSundayISO(fromIso: string) {
+        let iso = addDaysISO(fromIso, 1);
+        while (isSundayISO(iso)) iso = addDaysISO(iso, 1);
+        return iso;
+    }
 
     return (
         <main className='mx-auto w-full max-w-5xl px-4 py-10'>
