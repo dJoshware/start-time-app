@@ -94,8 +94,8 @@ export default async function DashboardPage() {
     const user = await getSessionUser();
     if (!user) redirect("/login");
     const todayIso = todayISOChicago();
-    const weekStartIso = startOfWeekMondayISO(todayIso);
-    const weekEndIso = addDaysISO(weekStartIso, 6);
+    const windowStartIso = todayIso;
+    const windowEndIso = addDaysISO(todayIso, 6);
 
     // Fetch start times for this week
     const weekRows = await sql<
@@ -118,7 +118,7 @@ export default async function DashboardPage() {
         from area_start_times st
         left join users u on u.employee_id = st.updated_by
         where st.area = 'preload'
-            and st.work_date between ${weekStartIso}::date and ${weekEndIso}::date
+            and st.work_date between ${windowStartIso}::date and ${windowEndIso}::date
         order by st.work_date asc
     `;
 
@@ -164,7 +164,7 @@ export default async function DashboardPage() {
     }
 
     const days = Array.from({ length: 7 }, (_, i) => {
-        const iso = addDaysISO(weekStartIso, i);
+        const iso = addDaysISO(todayIso, i);
         return { iso, row: byDate.get(iso) };
     });
 
@@ -183,8 +183,8 @@ export default async function DashboardPage() {
                         Hi{user.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}
                     </h1>
                     <p className='text-sm text-muted-foreground'>
-                        Week of {monthDayISO(weekStartIso)} –{" "}
-                        {monthDayISO(weekEndIso)}
+                        Week of {monthDayISO(windowStartIso)} –{" "}
+                        {monthDayISO(windowEndIso)}
                     </p>
                 </div>
 
