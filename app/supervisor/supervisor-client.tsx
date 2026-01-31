@@ -51,8 +51,8 @@ export default function SupervisorClient({
     );
     const [qName, setQName] = useState("");
     const [qId, setQId] = useState("");
-    const [qRole, setQRole] = useState<"" | "Employee" | "Supervisor">("");
-    const [qActive, setQActive] = useState<"" | "Active" | "Inactive">("");
+    const [qRole, setQRole] = useState<"" | "employee" | "supervisor">("");
+    const [qActive, setQActive] = useState<"" | "active" | "inactive">("");
     // Area is assumed preload for now
     const qArea = "Preload";
 
@@ -66,8 +66,8 @@ export default function SupervisorClient({
             if (name && !fullName.includes(name)) return false;
             if (id && !e.employee_id.includes(id)) return false;
             if (qRole && e.role !== qRole) return false;
-            if (qActive === "Active" && !e.active) return false;
-            if (qActive === "Inactive" && e.active) return false;
+            if (qActive === "active" && !e.active) return false;
+            if (qActive === "inactive" && e.active) return false;
 
             // area assumed preload
             if (qArea && qArea !== "Preload") return false;
@@ -431,6 +431,8 @@ export default function SupervisorClient({
                                     <TableHead>Role</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Added</TableHead>
+                                    <TableHead>Last Signed In</TableHead>
+                                    <TableHead>Sign In Count</TableHead>
                                 </TableRow>
                             </TableHeader>
 
@@ -465,6 +467,21 @@ export default function SupervisorClient({
                                                 hour: "numeric",
                                                 minute: "2-digit",
                                             })}
+                                        </TableCell>
+                                        <TableCell>
+                                            {e.last_signed_in
+                                                ? new Date(e.last_signed_in).toLocaleString("en-US", {
+                                                    timeZone: "America/Chicago",
+                                                    year: "numeric",
+                                                    month: "2-digit",
+                                                    day: "2-digit",
+                                                    hour: "numeric",
+                                                    minute: "2-digit",
+                                                })
+                                                : "-"}
+                                        </TableCell>
+                                        <TableCell className="tabular-nums">
+                                            {e.sign_in_count ?? 0}
                                         </TableCell>
                                     </TableRow>
                                 ))}
