@@ -173,10 +173,15 @@ export default async function DashboardPage() {
     // Base choice: Today vs Tomorrow
     const baseIso = isAfterSort ? addDaysISO(todayIso, 1) : todayIso;
     // If base lands on Sunday, bump to Monday (or next day that isn't Sunday)
-    const detailIso = isSundayISO(baseIso) ? nextNonSundayISO(todayIso) : baseIso;
-    const detailLabel = isAfterSort
-        ? (detailIso === addDaysISO(todayIso, 1) ? "Tomorrow" : "Next Sort")
-        : "Today";
+    const detailIso = isSundayISO(baseIso)
+        ? nextNonSundayISO(todayIso)
+        : baseIso;
+    const isTomorrow = detailIso === addDaysISO(todayIso, 1);
+    const detailLabel = !isAfterSort
+        ? "Today"
+        : isTomorrow
+            ? "Tomorrow"
+            : weekdayNameISO(detailIso);
     const detailRow = byDate.get(detailIso);
 
     function isSundayISO(iso: string) {
@@ -185,7 +190,7 @@ export default async function DashboardPage() {
             timeZone: TZ,
             weekday: "short",
         }).format(dateFromISO(iso));
-    
+
         return weekday === "Sun";
     }
 
@@ -195,13 +200,23 @@ export default async function DashboardPage() {
         return iso;
     }
 
+    function weekdayNameISO(iso: string) {
+        return new Intl.DateTimeFormat("en-US", {
+            timeZone: TZ,
+            weekday: "long",
+        }).format(dateFromISO(iso));
+    }
+
     return (
         <main className='mx-auto w-full max-w-5xl px-4 py-10'>
             {/* Header */}
             <header className='flex items-start justify-between gap-4'>
                 <div>
                     <h1 className='text-2xl font-semibold tracking-tight'>
-                        Hi{user.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}
+                        Hi
+                        {user.full_name
+                            ? `, ${user.full_name.split(" ")[0]}`
+                            : ""}
                     </h1>
                     <p className='text-sm text-muted-foreground'>
                         Week of {monthDayISO(windowStartIso)} –{" "}
@@ -321,8 +336,13 @@ export default async function DashboardPage() {
                     <CardHeader>
                         <CardTitle className='text-base flex items-center justify-between'>
                             {detailLabel} ({monthDayISO(detailIso)})
-                            <Badge className={isAfterSort ? "bg-yellow-300 text-slate-950" : "bg-green-400 text-slate-950"}>
-                                {isAfterSort ? 'Next Sort' : 'Current Sort'}
+                            <Badge
+                                className={
+                                    isAfterSort
+                                        ? "bg-yellow-300 text-slate-950"
+                                        : "bg-green-400 text-slate-950"
+                                }>
+                                {isAfterSort ? "Next Sort" : "Current Sort"}
                             </Badge>
                         </CardTitle>
                     </CardHeader>
