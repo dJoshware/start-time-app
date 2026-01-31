@@ -23,6 +23,8 @@ export type EmployeeRow = {
     role: "Employee" | "Supervisor";
     active: boolean;
     created_at: Date | string;
+    last_signed_in: Date | string | null;
+    sign_in_count: number;
     // no area in DB yet, we’ll assume preload in UI
 };
 
@@ -50,10 +52,16 @@ export default async function SupervisorPage() {
     `;
 
     const employees = await sql<EmployeeRow[]>`
-        select employee_id, full_name, role, active, created_at
+        select
+            employee_id,
+            full_name,
+            role,
+            active,
+            created_at,
+            last_signed_in,
+            sign_in_count
         from users
         order by created_at desc
-        limit 500
     `;
 
     return (
