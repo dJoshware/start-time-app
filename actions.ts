@@ -91,7 +91,12 @@ export async function loginAction(
         };
     }
 
-    const rows = await sql`
+    const rows = await sql<{
+        employee_id: string;
+        pin_hash: string;
+        role: "employee" | "supervisor";
+        active: boolean;
+    }[]>`
     select employee_id, pin_hash, role, active
     from users
     where employee_id = ${employeeId}
@@ -112,9 +117,16 @@ export async function loginAction(
         return { ok: false, message: 'Incorrect PIN.', field: 'pin' };
     }
 
+    // Record successful login (only after PIN is correct)
+    await sql`
+        update users
+        set
+            last_signed_in = now(),
+            sign_in_count = coalesce(sign_in_count, 0) + 1
+        where employee_id = ${user.employee_id}
+    `;
+    
     await setSession(user.employee_id);
-
-    // If you want to redirect after success, do it here:
     redirect('/dashboard');
 }
 
