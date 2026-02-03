@@ -297,7 +297,7 @@ export default function SupervisorClient({
             <Card>
                 <CardHeader className='flex-row items-center justify-between space-y-0'>
                     <CardTitle className='text-base'>Recent Updates</CardTitle>
-                    <Badge variant='secondary'>Last 10</Badge>
+                    <Badge variant='secondary'>Last 20</Badge>
                 </CardHeader>
                 <CardContent>
                     <div className='max-h-80 overflow-x-auto overflow-y-auto'>
