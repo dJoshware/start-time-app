@@ -297,12 +297,12 @@ export default function SupervisorClient({
             <Card>
                 <CardHeader className='flex-row items-center justify-between space-y-0'>
                     <CardTitle className='text-base'>Recent Updates</CardTitle>
-                    <Badge variant='secondary'>Last 20</Badge>
+                    <Badge variant='secondary'>Last 10</Badge>
                 </CardHeader>
                 <CardContent>
-                    <div className='overflow-x-auto'>
+                    <div className='max-h-80 overflow-x-auto overflow-y-auto'>
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Time</TableHead>
@@ -421,9 +421,9 @@ export default function SupervisorClient({
                     </div>
 
                     {/* Table */}
-                    <div className='overflow-x-auto'>
+                    <div className='max-h-86 overflow-x-auto overflow-y-auto'>
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
                                     <TableHead>Name</TableHead>
                                     <TableHead>Employee ID</TableHead>

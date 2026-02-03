@@ -48,7 +48,7 @@ export default async function SupervisorPage() {
         left join users u on u.employee_id = st.updated_by
         where st.area = 'preload'
         order by st.updated_at desc
-        limit 20
+        limit 10
     `;
 
     const employees = await sql<EmployeeRow[]>`
