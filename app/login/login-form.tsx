@@ -57,7 +57,7 @@ export default function LoginForm({
                                 id='employeeId'
                                 name='employeeId'
                                 inputMode='numeric'
-                                placeholder='1234567'
+                                placeholder='Ex: 1234567'
                                 maxLength={7}
                                 aria-invalid={
                                     state?.ok === false &&
@@ -89,7 +89,7 @@ export default function LoginForm({
                                 name='pin'
                                 type='password'
                                 inputMode='numeric'
-                                placeholder='••••'
+                                placeholder='Last 4 of ID #'
                                 aria-invalid={
                                     state?.ok === false && state.field === "pin"
                                 }
