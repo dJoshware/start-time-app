@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { setSession, getSessionUser } from '@/lib/auth';
@@ -91,12 +92,14 @@ export async function loginAction(
         };
     }
 
-    const rows = await sql<{
-        employee_id: string;
-        pin_hash: string;
-        role: "employee" | "supervisor";
-        active: boolean;
-    }[]>`
+    const rows = await sql<
+        {
+            employee_id: string;
+            pin_hash: string;
+            role: 'employee' | 'supervisor';
+            active: boolean;
+        }[]
+    >`
     select employee_id, pin_hash, role, active
     from users
     where employee_id = ${employeeId}
@@ -125,7 +128,7 @@ export async function loginAction(
             sign_in_count = coalesce(sign_in_count, 0) + 1
         where employee_id = ${user.employee_id}
     `;
-    
+
     await setSession(user.employee_id);
     redirect('/dashboard');
 }
@@ -164,4 +167,52 @@ export async function upsertUserAction(_prev: any, formData: FormData) {
         ok: true as const,
         message: `Saved user ${employeeId} (${role}).`,
     };
+}
+
+export async function deleteUsersAction(
+    _prev: { ok: boolean; message?: string } | null,
+    formData: FormData,
+): Promise<{ ok: boolean; message?: string }> {
+    const me = await requireSupervisor();
+
+    const raw = String(formData.get('employeeIds') || '').trim();
+    if (!raw) return { ok: false, message: 'No employees selected.' };
+
+    let employeeIds: string[] = [];
+    try {
+        employeeIds = JSON.parse(raw);
+    } catch {
+        return { ok: false, message: 'Invalid employee selection payload.' };
+    }
+
+    employeeIds = employeeIds
+        .filter(id => typeof id === 'string')
+        .map(id => id.trim())
+        .filter(id => /^\d{7}$/.test(id));
+
+    if (employeeIds.length === 0) {
+        return { ok: false, message: 'No valid employee IDs selected.' };
+    }
+
+    employeeIds = employeeIds.filter(id => id !== me.employee_id);
+    if (employeeIds.length === 0) {
+        return { ok: false, message: 'You cannot delete your own account.' };
+    }
+
+    try {
+        await sql`
+      delete from users
+      where employee_id = any(${employeeIds}::text[])
+    `;
+    } catch (err: any) {
+        // Most common failure: foreign key constraint
+        return {
+            ok: false,
+            message:
+                'Delete failed. This user likely has related records (announcements/start times). Either delete those first or change foreign keys to allow deleting users.',
+        };
+    }
+
+    revalidatePath('/supervisor');
+    return { ok: true, message: `Deleted ${employeeIds.length} user(s).` };
 }

@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import * as React from "react";
 import Link from "next/link";
 import type { RecentRow, EmployeeRow } from "./page";
 import {
     setAnnouncementAction,
     upsertPreloadStartTimeAction,
     upsertUserAction,
+    deleteUsersAction,
 } from "@/actions";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Table,
     TableBody,
@@ -37,28 +39,39 @@ export default function SupervisorClient({
     recent: RecentRow[];
     employees: EmployeeRow[];
 }) {
-    const [annState, annAction, annPending] = useActionState(
+    const [annState, annAction, annPending] = React.useActionState(
         setAnnouncementAction,
         null,
     );
-    const [stState, stAction, stPending] = useActionState(
+    const [stState, stAction, stPending] = React.useActionState(
         upsertPreloadStartTimeAction,
         null,
     );
-    const [userState, userAction, userPending] = useActionState(
+    const [userState, userAction, userPending] = React.useActionState(
         upsertUserAction,
         null,
     );
-    const [qName, setQName] = useState("");
-    const [qId, setQId] = useState("");
-    const [qRole, setQRole] = useState<"" | "employee" | "supervisor">("");
-    const [qActive, setQActive] = useState<"" | "active" | "inactive">("");
+    const [delState, delAction, delPending] = React.useActionState(
+        deleteUsersAction,
+        null,
+    );
+
+    const [qName, setQName] = React.useState("");
+    const [qId, setQId] = React.useState("");
+    const [qRole, setQRole] = React.useState<"" | "employee" | "supervisor">(
+        "",
+    );
+    const [qActive, setQActive] = React.useState<"" | "active" | "inactive">(
+        "",
+    );
     // Area is assumed preload for now
     const qArea = "Preload";
-    const [isEdit, setIsEdit] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isEdit, setIsEdit] = React.useState(false);
+    const [selectedIds, setSelectedIds] = React.useState<Set<string>>(
+        new Set(),
+    );
 
-    const filteredEmployees = useMemo(() => {
+    const filteredEmployees = React.useMemo(() => {
         const name = qName.trim().toLowerCase();
         const id = qId.trim();
 
@@ -86,20 +99,20 @@ export default function SupervisorClient({
             return next;
         });
     }
-    
+
     function clearSelection() {
         setSelectedIds(new Set());
     }
-    
-    const allVisibleIds = useMemo(
+
+    const allVisibleIds = React.useMemo(
         () => filteredEmployees.map(e => e.employee_id),
         [filteredEmployees],
     );
-    
+
     const allVisibleSelected =
         allVisibleIds.length > 0 &&
         allVisibleIds.every(id => selectedIds.has(id));
-    
+
     function toggleSelectAllVisible() {
         setSelectedIds(prev => {
             const next = new Set(prev);
@@ -113,6 +126,13 @@ export default function SupervisorClient({
             return next;
         });
     }
+
+    React.useEffect(() => {
+        if (delState?.ok) {
+            clearSelection();
+            setIsEdit(false);
+        }
+    }, [delState]);
 
     return (
         <main className='mx-auto w-full max-w-5xl px-4 py-10 space-y-6'>
@@ -340,7 +360,7 @@ export default function SupervisorClient({
                 <CardContent>
                     <div className='max-h-80 overflow-x-auto overflow-y-auto'>
                         <Table>
-                            <TableHeader className="sticky top-0 bg-background z-10">
+                            <TableHeader className='sticky top-0 bg-background z-10'>
                                 <TableRow>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Time</TableHead>
@@ -393,55 +413,10 @@ export default function SupervisorClient({
                 <CardHeader className='flex-row items-center justify-between space-y-0'>
                     <div className='flex items-center gap-3'>
                         <CardTitle className='text-base'>Employees</CardTitle>
-                        <Badge variant='secondary'>
-                            {filteredEmployees.length} / {employees.length}
-                        </Badge>
-                        {isEdit ? (
-                            <Badge variant='outlined'>
-                                {selectedIds.size} selecteed
-                            </Badge>
-                        ) : null}
                     </div>
-
-                    <div className="flex items-center gap-2">
-                        {isEdit ? (
-                            <>
-                                <Button
-                                    variant="destructive"
-                                    disabled={selectedIds.size === 0}
-                                    onClick={() => {
-                                        const count = selectedIds.size;
-                                        const ok = window.confirm(
-                                            `Delete ${count} employee${count === 1 ? "" : "s"}? This cannot be undone.`,
-                                        );
-                                        if (!ok) return;
-                
-                                        // TODO: call your server action here
-                                        // deleteEmployeesAction([...selectedIds])
-                
-                                        clearSelection();
-                                        setIsEdit(false);
-                                    }}
-                                >
-                                    Delete Selected
-                                </Button>
-                
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => {
-                                        clearSelection();
-                                        setIsEdit(false);
-                                    }}
-                                >
-                                    Done
-                                </Button>
-                            </>
-                        ) : (
-                            <Button variant="secondary" onClick={() => setIsEdit(true)}>
-                                Edit
-                            </Button>
-                        )}
-                    </div>
+                    <Badge variant='secondary'>
+                        {filteredEmployees.length} / {employees.length}
+                    </Badge>
                 </CardHeader>
 
                 <CardContent className='space-y-4'>
@@ -499,7 +474,7 @@ export default function SupervisorClient({
                         </div>
                     </div>
 
-                    {/* Area note (MVP) */}
+                    {/* Area note */}
                     <div className='text-xs text-muted-foreground'>
                         Area is currently assumed:{" "}
                         <span className='font-medium'>Preload</span>
@@ -507,20 +482,38 @@ export default function SupervisorClient({
 
                     {/* Table */}
                     <div className='max-h-86 overflow-x-auto overflow-y-auto'>
+                        {delState?.ok === false ? (
+                            <Alert>
+                                <AlertTitle>Couldn’t delete</AlertTitle>
+                                <AlertDescription>
+                                    {delState.message}
+                                </AlertDescription>
+                            </Alert>
+                        ) : null}
+
+                        {delState?.ok === true ? (
+                            <Alert>
+                                <AlertTitle>Done</AlertTitle>
+                                <AlertDescription>
+                                    {delState.message}
+                                </AlertDescription>
+                            </Alert>
+                        ) : null}
                         <Table>
-                            <TableHeader className="sticky top-0 bg-background z-10">
+                            <TableHeader className='sticky top-0 bg-background z-10'>
                                 <TableRow>
                                     {isEdit ? (
-                                        <TableHead className="w-10">
+                                        <TableHead className='w-10'>
                                             <input
-                                                type="checkbox"
-                                                aria-label="Select all visible employees"
+                                                type='checkbox'
+                                                aria-label='Select all visible employees'
                                                 checked={allVisibleSelected}
-                                                onChange={toggleSelectAllVisible}
+                                                onChange={
+                                                    toggleSelectAllVisible
+                                                }
                                             />
                                         </TableHead>
                                     ) : null}
-                            
                                     <TableHead>Name</TableHead>
                                     <TableHead>Employee ID</TableHead>
                                     <TableHead>Area</TableHead>
@@ -536,12 +529,18 @@ export default function SupervisorClient({
                                 {filteredEmployees.map(e => (
                                     <TableRow key={e.employee_id}>
                                         {isEdit ? (
-                                            <TableCell className="w-10">
+                                            <TableCell className='w-10'>
                                                 <input
-                                                    type="checkbox"
+                                                    type='checkbox'
                                                     aria-label={`Select ${e.full_name ?? e.employee_id}`}
-                                                    checked={selectedIds.has(e.employee_id)}
-                                                    onChange={() => toggleSelected(e.employee_id)}
+                                                    checked={selectedIds.has(
+                                                        e.employee_id,
+                                                    )}
+                                                    onChange={() =>
+                                                        toggleSelected(
+                                                            e.employee_id,
+                                                        )
+                                                    }
                                                 />
                                             </TableCell>
                                         ) : null}
@@ -550,7 +549,9 @@ export default function SupervisorClient({
                                         </TableCell>
                                         <TableCell>{e.employee_id}</TableCell>
                                         <TableCell>Preload</TableCell>
-                                        <TableCell className="capitalize">{e.role}</TableCell>
+                                        <TableCell className='capitalize'>
+                                            {e.role}
+                                        </TableCell>
                                         <TableCell>
                                             {e.active ? (
                                                 <Badge variant='secondary'>
@@ -576,17 +577,20 @@ export default function SupervisorClient({
                                         </TableCell>
                                         <TableCell>
                                             {e.last_signed_in
-                                                ? new Date(e.last_signed_in).toLocaleString("en-US", {
-                                                    timeZone: "America/Chicago",
-                                                    year: "numeric",
-                                                    month: "2-digit",
-                                                    day: "2-digit",
-                                                    hour: "numeric",
-                                                    minute: "2-digit",
-                                                })
+                                                ? new Date(
+                                                      e.last_signed_in,
+                                                  ).toLocaleString("en-US", {
+                                                      timeZone:
+                                                          "America/Chicago",
+                                                      year: "numeric",
+                                                      month: "2-digit",
+                                                      day: "2-digit",
+                                                      hour: "numeric",
+                                                      minute: "2-digit",
+                                                  })
                                                 : "-"}
                                         </TableCell>
-                                        <TableCell className="tabular-nums">
+                                        <TableCell className='tabular-nums'>
                                             {e.sign_in_count ?? 0}
                                         </TableCell>
                                     </TableRow>
@@ -603,6 +607,62 @@ export default function SupervisorClient({
                                 ) : null}
                             </TableBody>
                         </Table>
+                    </div>
+                    {/* Edit button */}
+                    {isEdit ? (
+                        <Badge variant='outline'>
+                            {selectedIds.size} selected
+                        </Badge>
+                    ) : null}
+                    <div className='flex items-center gap-2'>
+                        {isEdit ? (
+                            <>
+                                <form
+                                    action={delAction}
+                                    onSubmit={e => {
+                                        const count = selectedIds.size;
+                                        if (count === 0) {
+                                            e.preventDefault();
+                                            return;
+                                        }
+                                        const ok = window.confirm(
+                                            `Delete ${count} user${count === 1 ? "" : "s"}? This will permanently remove them.`,
+                                        );
+                                        if (!ok) e.preventDefault();
+                                    }}>
+                                    <input
+                                        type='hidden'
+                                        name='employeeIds'
+                                        value={JSON.stringify(
+                                            Array.from(selectedIds),
+                                        )}
+                                    />
+
+                                    <Button
+                                        type='submit'
+                                        variant='destructive'
+                                        disabled={
+                                            delPending || selectedIds.size === 0
+                                        }>
+                                        {delPending
+                                            ? "Deleting..."
+                                            : "Delete Selected"}
+                                    </Button>
+                                </form>
+
+                                <Button
+                                    onClick={() => {
+                                        clearSelection();
+                                        setIsEdit(false);
+                                    }}>
+                                    Done
+                                </Button>
+                            </>
+                        ) : (
+                            <Button onClick={() => setIsEdit(true)}>
+                                Edit
+                            </Button>
+                        )}
                     </div>
                 </CardContent>
             </Card>
