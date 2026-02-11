@@ -55,6 +55,44 @@ export default function SupervisorClient({
     const [qActive, setQActive] = useState<"" | "active" | "inactive">("");
     // Area is assumed preload for now
     const qArea = "Preload";
+    const [isEdit, setIsEdit] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    function toggleSelected(id: string) {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }
+    
+    function clearSelection() {
+        setSelectedIds(new Set());
+    }
+    
+    const allVisibleIds = useMemo(
+        () => filteredEmployees.map(e => e.employee_id),
+        [filteredEmployees],
+    );
+    
+    const allVisibleSelected =
+        allVisibleIds.length > 0 &&
+        allVisibleIds.every(id => selectedIds.has(id));
+    
+    function toggleSelectAllVisible() {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (allVisibleSelected) {
+                // unselect all visible
+                allVisibleIds.forEach(id => next.delete(id));
+            } else {
+                // select all visible
+                allVisibleIds.forEach(id => next.add(id));
+            }
+            return next;
+        });
+    }
 
     const filteredEmployees = useMemo(() => {
         const name = qName.trim().toLowerCase();
@@ -353,10 +391,57 @@ export default function SupervisorClient({
             {/* Employees */}
             <Card>
                 <CardHeader className='flex-row items-center justify-between space-y-0'>
-                    <CardTitle className='text-base'>Employees</CardTitle>
-                    <Badge variant='secondary'>
-                        {filteredEmployees.length} / {employees.length}
-                    </Badge>
+                    <div className='flex items-center gap-3'>
+                        <CardTitle className='text-base'>Employees</CardTitle>
+                        <Badge variant='secondary'>
+                            {filteredEmployees.length} / {employees.length}
+                        </Badge>
+                        {isEdit ? (
+                            <Badge variant='outlined'>
+                                {selectedIds.size} selecteed
+                            </Badge>
+                        ) : null}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {isEdit ? (
+                            <>
+                                <Button
+                                    variant="destructive"
+                                    disabled={selectedIds.size === 0}
+                                    onClick={() => {
+                                        const count = selectedIds.size;
+                                        const ok = window.confirm(
+                                            `Delete ${count} employee${count === 1 ? "" : "s"}? This cannot be undone.`,
+                                        );
+                                        if (!ok) return;
+                
+                                        // TODO: call your server action here
+                                        // deleteEmployeesAction([...selectedIds])
+                
+                                        clearSelection();
+                                        setIsEdit(false);
+                                    }}
+                                >
+                                    Delete Selected
+                                </Button>
+                
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => {
+                                        clearSelection();
+                                        setIsEdit(false);
+                                    }}
+                                >
+                                    Done
+                                </Button>
+                            </>
+                        ) : (
+                            <Button variant="secondary" onClick={() => setIsEdit(true)}>
+                                Edit
+                            </Button>
+                        )}
+                    </div>
                 </CardHeader>
 
                 <CardContent className='space-y-4'>
@@ -425,6 +510,17 @@ export default function SupervisorClient({
                         <Table>
                             <TableHeader className="sticky top-0 bg-background z-10">
                                 <TableRow>
+                                    {isEdit ? (
+                                        <TableHead className="w-10">
+                                            <input
+                                                type="checkbox"
+                                                aria-label="Select all visible employees"
+                                                checked={allVisibleSelected}
+                                                onChange={toggleSelectAllVisible}
+                                            />
+                                        </TableHead>
+                                    ) : null}
+                            
                                     <TableHead>Name</TableHead>
                                     <TableHead>Employee ID</TableHead>
                                     <TableHead>Area</TableHead>
@@ -439,6 +535,16 @@ export default function SupervisorClient({
                             <TableBody>
                                 {filteredEmployees.map(e => (
                                     <TableRow key={e.employee_id}>
+                                        {isEdit ? (
+                                            <TableCell className="w-10">
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label={`Select ${e.full_name ?? e.employee_id}`}
+                                                    checked={selectedIds.has(e.employee_id)}
+                                                    onChange={() => toggleSelected(e.employee_id)}
+                                                />
+                                            </TableCell>
+                                        ) : null}
                                         <TableCell className='font-medium'>
                                             {e.full_name ?? "—"}
                                         </TableCell>
@@ -489,7 +595,7 @@ export default function SupervisorClient({
                                 {filteredEmployees.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={6}
+                                            colSpan={isEdit ? 9 : 8}
                                             className='text-sm text-muted-foreground'>
                                             No employees match your filters.
                                         </TableCell>
