@@ -58,6 +58,26 @@ export default function SupervisorClient({
     const [isEdit, setIsEdit] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+    const filteredEmployees = useMemo(() => {
+        const name = qName.trim().toLowerCase();
+        const id = qId.trim();
+
+        return employees.filter(e => {
+            const fullName = (e.full_name ?? "").toLowerCase();
+
+            if (name && !fullName.includes(name)) return false;
+            if (id && !e.employee_id.includes(id)) return false;
+            if (qRole && e.role !== qRole) return false;
+            if (qActive === "active" && !e.active) return false;
+            if (qActive === "inactive" && e.active) return false;
+
+            // area assumed preload
+            if (qArea && qArea !== "Preload") return false;
+
+            return true;
+        });
+    }, [employees, qName, qId, qRole, qActive]);
+
     function toggleSelected(id: string) {
         setSelectedIds(prev => {
             const next = new Set(prev);
@@ -93,26 +113,6 @@ export default function SupervisorClient({
             return next;
         });
     }
-
-    const filteredEmployees = useMemo(() => {
-        const name = qName.trim().toLowerCase();
-        const id = qId.trim();
-
-        return employees.filter(e => {
-            const fullName = (e.full_name ?? "").toLowerCase();
-
-            if (name && !fullName.includes(name)) return false;
-            if (id && !e.employee_id.includes(id)) return false;
-            if (qRole && e.role !== qRole) return false;
-            if (qActive === "active" && !e.active) return false;
-            if (qActive === "inactive" && e.active) return false;
-
-            // area assumed preload
-            if (qArea && qArea !== "Preload") return false;
-
-            return true;
-        });
-    }, [employees, qName, qId, qRole, qActive]);
 
     return (
         <main className='mx-auto w-full max-w-5xl px-4 py-10 space-y-6'>
