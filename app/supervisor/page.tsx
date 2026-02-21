@@ -9,7 +9,7 @@ export const revalidate = 0;
 
 export type RecentRow = {
     employee_id: string;
-    work_date: Date | string;
+    work_date: string;
     start_time: string;
     notes: string | null;
     updated_at: Date | string;
@@ -38,7 +38,7 @@ export default async function SupervisorPage() {
     const recent = await sql<RecentRow[]>`
         select
             st.area,
-            st.work_date,
+            st.work_date::text as work_date,
             st.start_time,
             st.notes,
             st.updated_at,
