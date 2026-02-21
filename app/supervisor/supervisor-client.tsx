@@ -374,7 +374,15 @@ export default function SupervisorClient({
                                     <TableRow
                                         key={`${r.employee_id}-${String(r.work_date)}`}>
                                         <TableCell>
-                                            {String(r.work_date).slice(0, 10)}
+                                            {(() => {
+                                                const [y, m, d] = r.work_date.split("-");
+                                                const localDate = new Date(Number(y), Number(m) - 1, Number(d));
+                                                return localDate.toLocaleDateString("en-US", {
+                                                    weekday: "short",
+                                                    month: "short",
+                                                    day: "numeric",
+                                                }).replace(",", "");
+                                            })()}
                                         </TableCell>
                                         <TableCell>
                                             {String(r.start_time).slice(0, 5)}
