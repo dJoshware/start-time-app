@@ -163,7 +163,7 @@ export default function SupervisorClient({
                     <CardTitle className='text-base'>
                         Set Announcement
                     </CardTitle>
-                    <Badge variant='secondary'>Site-wide</Badge>
+                    <Badge variant='secondary'>Sort-wide</Badge>
                 </CardHeader>
                 <CardContent className='space-y-3'>
                     {annState?.ok === false ? (
@@ -184,7 +184,7 @@ export default function SupervisorClient({
                                 id='message'
                                 name='message'
                                 rows={3}
-                                placeholder='Example: Preload start time is 5:15am today due to weather.'
+                                placeholder='Only your sort will see what you post.'
                             />
                         </div>
 
@@ -201,10 +201,10 @@ export default function SupervisorClient({
             <Card>
                 <CardHeader>
                     <CardTitle className='text-base'>
-                        Set Preload Start Time
+                        Set Start Time {/* Add sort JSX */}
                     </CardTitle>
                     <p className='text-sm text-muted-foreground'>
-                        This sets the start time everyone will see.
+                        This sets the start time for your sort.
                     </p>
                 </CardHeader>
 
@@ -258,7 +258,7 @@ export default function SupervisorClient({
                                 disabled={stPending}>
                                 {stPending
                                     ? "Saving..."
-                                    : "Save Preload Start Time"}
+                                    : "Save Start Time"} {/* Add sort JSX */}
                             </Button>
                         </div>
                     </form>
