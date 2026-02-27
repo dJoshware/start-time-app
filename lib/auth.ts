@@ -5,6 +5,15 @@ import { sql } from './db';
 const COOKIE_NAME = 'st_session';
 const SECRET = process.env.SESSION_SECRET!;
 
+export type SessionUser = {
+  employee_id: string;
+  role: "employee" | "supervisor";
+  full_name: string | null;
+  sort: string;
+  area: string | null;
+  sub_area: string | null;
+};
+
 function sign(payload: string) {
     return crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
 }
@@ -28,7 +37,7 @@ export async function clearSession() {
     c.set(COOKIE_NAME, '', { path: '/', maxAge: 0 });
 }
 
-export async function getSessionUser() {
+export async function getSessionUser(): Promise<SessionUser | null> {
     const c = await cookies();
 
     const raw = c.get(COOKIE_NAME)?.value;
@@ -44,19 +53,23 @@ export async function getSessionUser() {
     const ageMs = Date.now() - Number(ts);
     if (Number.isNaN(ageMs) || ageMs > 7 * 24 * 60 * 60 * 1000) return null;
 
-    const rows = await sql`
-    select employee_id, role, full_name, active
-    from users
-    where employee_id = ${employeeId}
-    limit 1
-  `;
+    const rows = await sql<{
+      employee_id: string;
+      role: "employee" | "supervisor";
+      full_name: string | null;
+      sort: string;
+      area: string | null;
+      sub_area: string | null;
+      active: boolean;
+    }[]>`
+      select employee_id, role, full_name, sort, area, sub_area, active
+      from users
+      where employee_id = ${employeeId}
+      limit 1
+    `;
     const user = rows[0];
     if (!user?.active) return null;
-
-    return user as {
-        employee_id: string;
-        role: 'employee' | 'supervisor';
-        full_name: string | null;
-        active: boolean;
-    };
+    
+    const { employee_id, role, full_name, sort, area, sub_area } = user;
+    return { employee_id, role, full_name, sort, area, sub_area };
 }
