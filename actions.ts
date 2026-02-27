@@ -23,51 +23,60 @@ async function requireSupervisor() {
 }
 
 export async function setAnnouncementAction(
-    _prevState: { ok: boolean; message?: string } | null,
-    formData: FormData,
+  _prevState: { ok: boolean; message?: string } | null,
+  formData: FormData,
 ): Promise<{ ok: boolean; message?: string }> {
-    const user = await requireSupervisor();
+  const user = await requireSupervisor();
 
-    const message = String(formData.get('message') || '').trim();
-    if (!message)
-        return { ok: false, message: 'Announcement message is required.' };
+  const message = String(formData.get("message") || "").trim();
+  if (!message) {
+    return { ok: false, message: "Announcement message is required." };
+  }
 
-    await sql`
-    insert into announcements (message, updated_by)
-    values (${message}, ${user.employee_id})
+  // Blank = all areas in the sort
+  const areaRaw = String(formData.get("area") || user.area || "").trim();
+  const area = areaRaw ? areaRaw : null;
+
+  await sql`
+    insert into announcements (message, updated_by, sort, area)
+    values (${message}, ${user.employee_id}, ${user.sort}, ${area})
   `;
 
-    return { ok: true };
+  revalidatePath("/supervisor");
+  revalidatePath("/dashboard");
+  return { ok: true };
 }
 
 export async function upsertPreloadStartTimeAction(
-    _prevState: { ok: boolean; message?: string } | null,
-    formData: FormData,
+  _prevState: { ok: boolean; message?: string } | null,
+  formData: FormData,
 ): Promise<{ ok: boolean; message?: string }> {
-    const user = await requireSupervisor();
+  const user = await requireSupervisor();
 
-    const workDate = String(formData.get('workDate') || '').trim();
-    const startTime = String(formData.get('startTime') || '').trim();
-    const notes = String(formData.get('notes') || '').trim();
+  const workDate = String(formData.get("workDate") || "").trim();
+  const startTime = String(formData.get("startTime") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
-        return { ok: false, message: 'Work date must be YYYY-MM-DD.' };
-    }
-    if (!/^\d{2}:\d{2}$/.test(startTime)) {
-        return { ok: false, message: 'Start time must be HH:MM (24h).' };
-    }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
+    return { ok: false, message: "Work date must be YYYY-MM-DD." };
+  }
+  if (!/^\d{2}:\d{2}$/.test(startTime)) {
+    return { ok: false, message: "Start time must be HH:MM (24h)." };
+  }
 
-    await sql`
-    insert into area_start_times (area, work_date, start_time, notes, updated_by, updated_at)
-    values ('preload', ${workDate}::date, ${startTime}::time, ${notes || null}, ${user.employee_id}, now())
-    on conflict (area, work_date) do update
+  await sql`
+    insert into area_start_times (sort, work_date, start_time, notes, updated_by, updated_at)
+    values (${user.sort}, ${workDate}::date, ${startTime}::time, ${notes || null}, ${user.employee_id}, now())
+    on conflict (sort, work_date) do update
       set start_time = excluded.start_time,
           notes = excluded.notes,
           updated_by = excluded.updated_by,
           updated_at = now()
   `;
 
-    return { ok: true };
+  revalidatePath("/supervisor");
+  revalidatePath("/dashboard");
+  return { ok: true };
 }
 
 export async function loginAction(
@@ -134,39 +143,41 @@ export async function loginAction(
 }
 
 export async function upsertUserAction(_prev: any, formData: FormData) {
-    const me = await getSessionUser();
-    if (!me) return bad('Not signed in.');
-    if (me.role !== 'supervisor') return bad('Supervisor access required.');
+  const me = await requireSupervisor();
 
-    const employeeId = String(formData.get('employeeId') || '').trim();
-    const pin = String(formData.get('pin') || '').trim();
-    const role = String(formData.get('role') || '').trim() as
-        | 'employee'
-        | 'supervisor';
-    const fullName = String(formData.get('fullName') || '').trim();
+  const employeeId = String(formData.get("employeeId") || "").trim();
+  const pin = String(formData.get("pin") || "").trim();
+  const role = String(formData.get("role") || "").trim() as "employee" | "supervisor";
+  const fullName = String(formData.get("fullName") || "").trim();
 
-    if (!/^\d{7}$/.test(employeeId))
-        return bad('Employee ID must be exactly 7 digits.');
-    if (!/^\d{4,8}$/.test(pin)) return bad('PIN must be 4–8 digits.');
-    if (role !== 'employee' && role !== 'supervisor')
-        return bad('Role must be employee or supervisor.');
+  const sort = String(formData.get("sort") || me.sort).trim();
+  const area = String(formData.get("area") || "").trim();
+  const subArea = String(formData.get("subArea") || "").trim();
 
-    const pinHash = await bcrypt.hash(pin, 10);
+  if (!/^\d{7}$/.test(employeeId)) return bad("Employee ID must be exactly 7 digits.");
+  if (!/^\d{4,8}$/.test(pin)) return bad("PIN must be 4–8 digits.");
+  if (role !== "employee" && role !== "supervisor") return bad("Role must be employee or supervisor.");
 
-    await sql`
-    insert into users (employee_id, pin_hash, role, full_name)
-    values (${employeeId}, ${pinHash}, ${role}, ${fullName || null})
+  // Optional safety (recommended)
+  // if (!["preload", "midnight"].includes(sort)) return bad("Invalid sort.");
+
+  const pinHash = await bcrypt.hash(pin, 10);
+
+  await sql`
+    insert into users (employee_id, pin_hash, role, full_name, sort, area, sub_area)
+    values (${employeeId}, ${pinHash}, ${role}, ${fullName || null}, ${sort}, ${area || null}, ${subArea || null})
     on conflict (employee_id) do update
       set pin_hash = excluded.pin_hash,
           role = excluded.role,
           full_name = excluded.full_name,
+          sort = excluded.sort,
+          area = excluded.area,
+          sub_area = excluded.sub_area,
           active = true
   `;
 
-    return {
-        ok: true as const,
-        message: `Saved user ${employeeId} (${role}).`,
-    };
+  revalidatePath("/supervisor");
+  return { ok: true as const, message: `Saved user ${employeeId} (${role}).` };
 }
 
 export async function deleteUsersAction(
