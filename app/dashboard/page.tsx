@@ -99,47 +99,53 @@ export default async function DashboardPage() {
 
     // Fetch start times for this week
     const weekRows = await sql<
-        {
-            work_date: Date | string;
-            start_time: string;
-            notes: string | null;
-            updated_at: Date | string;
-            updated_by: string | null;
-            updated_by_name: string | null;
-        }[]
+      {
+        work_date: Date | string;
+        start_time: string;
+        notes: string | null;
+        updated_at: Date | string;
+        updated_by: string | null;
+        updated_by_name: string | null;
+      }[]
     >`
-        select
-            st.work_date,
-            st.start_time,
-            st.notes,
-            st.updated_at,
-            st.updated_by,
-            u.full_name as updated_by_name
-        from area_start_times st
-        left join users u on u.employee_id = st.updated_by
-        where st.area = 'preload'
-            and st.work_date between ${windowStartIso}::date and ${windowEndIso}::date
-        order by st.work_date asc
+      select
+        st.work_date::text as work_date,
+        st.start_time,
+        st.notes,
+        st.updated_at,
+        st.updated_by,
+        u.full_name as updated_by_name
+      from area_start_times st
+      left join users u on u.employee_id = st.updated_by
+      where st.sort = ${user.sort}
+        and st.work_date between ${windowStartIso}::date and ${windowEndIso}::date
+      order by st.work_date asc
     `;
 
     const annRows = await sql<
-        {
-            message: string;
-            updated_at: Date | string;
-            updated_by: string | null;
-            updated_by_name: string | null;
-        }[]
+      {
+        message: string;
+        updated_at: Date | string;
+        updated_by: string | null;
+        updated_by_name: string | null;
+        area: string | null;
+      }[]
     >`
-        select
-            a.message,
-            a.updated_at,
-            a.updated_by,
-            u.full_name as updated_by_name
-        from announcements a
-        left join users u
-            on u.employee_id = a.updated_by
-        order by a.updated_at desc
-        limit 1
+      select
+        a.message,
+        a.updated_at,
+        a.updated_by,
+        a.area,
+        u.full_name as updated_by_name
+      from announcements a
+      left join users u on u.employee_id = a.updated_by
+      where a.sort = ${user.sort}
+        and (
+          a.area is null
+          or a.area = ${user.area}
+        )
+      order by a.updated_at desc
+      limit 1
     `;
 
     const ann = annRows[0];
@@ -255,7 +261,7 @@ export default async function DashboardPage() {
             <section className='space-y-3'>
                 <div className='flex items-center justify-between'>
                     <h2 className='text-lg font-semibold tracking-tight'>
-                        This week - Preload {/** Change to {sort} query */}
+                        This week - {user.sort[0].toUpperCase() + user.sort.slice(1)}
                     </h2>
                     <span className='text-xs text-muted-foreground'>
                         Today is highlighted
