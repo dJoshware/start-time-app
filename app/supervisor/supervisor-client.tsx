@@ -82,7 +82,7 @@ export default function SupervisorClient({
         new Set(),
     );
     const areasForSort = AREA_MAP[supervisorSort] ?? [];
-    const [newArea, setNewArea] = React.useState("");
+    const [newArea, setNewArea] = React.useState(supervisorArea ?? "");
     const subAreasForNewArea =
         areasForSort.find(a => a.label === newArea)?.subAreas ?? [];
     const [recentArea, setRecentArea] = React.useState<string>(
@@ -271,7 +271,7 @@ export default function SupervisorClient({
                                 type="checkbox"
                                 name="areas"
                                 value={a.label}
-                                defaultChecked={normArea(a.label) === supervisorArea}
+                                defaultChecked={normArea(a.label) === normArea(supervisorArea)}
                               />
                               {a.label === "da" ? "DA" : titleCase(a.label)}
                             </label>
@@ -394,7 +394,8 @@ export default function SupervisorClient({
                             <select
                                 id='areaNew'
                                 name='area'
-                                defaultValue={supervisorArea}
+                                {/* defaultValue={supervisorArea ?? ""} */}
+                                value={newArea}
                                 onChange={e => setNewArea(e.target.value)}
                                 className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'>
                                 <option value=''>Select area</option>
@@ -418,7 +419,7 @@ export default function SupervisorClient({
                                         id='subAreaNew'
                                         name='subArea'
                                         className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'
-                                        defaultValue={supervisorSubArea}>
+                                        defaultValue={supervisorSubArea ?? ""}>
                                         <option value=''>
                                             Select sub-area
                                         </option>
