@@ -81,7 +81,7 @@ export default async function SupervisorPage({
             area,
             sub_area
         from users
-        where sort = ${user.sort}
+        where lower(trim(sort)) = lower(trim(${user.sort}))
         order by created_at desc
     `;
 
