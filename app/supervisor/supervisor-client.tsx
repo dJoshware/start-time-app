@@ -258,6 +258,26 @@ export default function SupervisorClient({
                         </Alert>
                     ) : null}
 
+                    <div className="space-y-2 md:col-span-3">
+                      <Label>Apply to areas</Label>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {areasForSort.map(a => (
+                          <label key={a.label} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              name="areas"
+                              value={a.label}
+                              defaultChecked={a.label === supervisorArea}
+                            />
+                            {a.label === "da" ? "DA" : titleCase(a.label)}
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Your own area is always included automatically.
+                      </p>
+                    </div>
+
                     <form
                         action={stAction}
                         className='grid gap-3 md:grid-cols-3'>
