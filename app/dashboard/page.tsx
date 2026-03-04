@@ -252,16 +252,18 @@ export default async function DashboardPage({
         orderedAnnouncementsStrict.map(a => [normArea(a.area), a]),
     );
 
-    // Default = first area in AREA_MAP order that has an announcement
+    // Default = user's area in AREA_MAP order that has an announcement
+    const myAreaAnn = myAreaKey ? annLookup.get(myAreaKey) : undefined;
     const firstAreaAnn =
         areaOrder.map(a => annLookup.get(a)).find(Boolean) ??
         orderedAnnouncementsStrict[0] ??
         undefined;
+    const defaultAnn = myAreaAnn ?? firstAreaAnn;
 
     // Final chosen announcement
     const ann = annParam
-        ? (annLookup.get(annParam) ?? firstAreaAnn)
-        : firstAreaAnn;
+        ? (annLookup.get(annParam) ?? defaultAnn)
+        : defaultAnn;
 
     const hourNow = chicagoHour();
     const isAfterSort = hourNow >= BUSINESS_DAY_CUTOFF_HOUR;
