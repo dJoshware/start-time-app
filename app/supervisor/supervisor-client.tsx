@@ -102,13 +102,18 @@ export default function SupervisorClient({
             .replace(/\s+/g, " ")
             .toLowerCase();
 
+    const employeesForSort = React.useMemo(() => {
+        const target = norm(supervisorSort);
+        return employees.filter(e => norm(e.sort) === target);
+    }, [employees, supervisorSort]);
+    
     const filteredEmployees = React.useMemo(() => {
         const nName = norm(qName);
         const nId = norm(qId);
         const nArea = norm(qArea);
         const nSub = norm(qSubArea);
 
-        return employees.filter(e => {
+        return employeesForSort.filter(e => {
             if (nName && !norm(e.full_name).includes(nName)) return false;
             if (nId && !String(e.employee_id).includes(nId)) return false;
 
@@ -577,7 +582,7 @@ export default function SupervisorClient({
                         </CardTitle>
                     </div>
                     <Badge variant='secondary'>
-                        {filteredEmployees.length} / {employees.length}
+                        {filteredEmployees.length} / {employeesForSort.length}
                     </Badge>
                 </CardHeader>
 
