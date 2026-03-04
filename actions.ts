@@ -86,11 +86,11 @@ export async function upsertStartTimeAction(
   const rawAreas = Array.from(new Set([user.area ?? "", ...pickedAreasRaw].filter(Boolean)));
 
   // Validate + canonicalize against AREA_MAP for this sort
-  const areas: string[] = [];
-  for (const a of rawAreas) {
-    const canon = canonicalAreaLabel(user.sort, a);
-    if (canon) areas.push(canon);
-  }
+  const areas = Array.from(new Set(
+  rawAreas
+    .map(a => canonicalAreaLabel(user.sort, a))
+    .filter(Boolean) as string[]
+));
 
   if (areas.length === 0) {
     return { ok: false, message: "No valid area selected for this sort." };
