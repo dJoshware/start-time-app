@@ -7,6 +7,8 @@ import { AREA_MAP, normArea } from '@/lib/helpers';
 import bcrypt from 'bcryptjs';
 import { setSession, getSessionUser } from '@/lib/auth';
 
+const SORT_OVERRIDE_IDS = new Set(['7255540']); // must match client-side check in supervisor-client.tsx
+
 function bad(message: string) {
     return { ok: false as const, message };
 }
@@ -24,12 +26,12 @@ async function requireSupervisor() {
 }
 
 function canonicalAreaLabel(sort: string, input: string): string | null {
-  const options = AREA_MAP[sort as keyof typeof AREA_MAP] ?? [];
-  const want = normArea(input);
+    const options = AREA_MAP[sort as keyof typeof AREA_MAP] ?? [];
+    const want = normArea(input);
 
-  // match against AREA_MAP labels (case/space insensitive)
-  const hit = options.find(o => normArea(o.label) === want);
-  return hit ? hit.label : null;
+    // match against AREA_MAP labels (case/space insensitive)
+    const hit = options.find(o => normArea(o.label) === want);
+    return hit ? hit.label : null;
 }
 
 export async function setAnnouncementAction(
@@ -58,46 +60,47 @@ export async function setAnnouncementAction(
 }
 
 export async function upsertStartTimeAction(
-  _prev: { ok: boolean; message?: string } | null,
-  formData: FormData,
+    _prev: { ok: boolean; message?: string } | null,
+    formData: FormData,
 ): Promise<{ ok: boolean; message?: string }> {
-  const user = await requireSupervisor();
-  if (!user.sort) return { ok: false, message: "Your account is missing a sort." };
+    const user = await requireSupervisor();
+    if (!user.sort)
+        return { ok: false, message: 'Your account is missing a sort.' };
 
-  const workDate = String(formData.get("workDate") || "").trim();
-  const startTime = String(formData.get("startTime") || "").trim();
-  const notesRaw = String(formData.get("notes") || "").trim();
+    const workDate = String(formData.get('workDate') || '').trim();
+    const startTime = String(formData.get('startTime') || '').trim();
+    const notesRaw = String(formData.get('notes') || '').trim();
 
-  const pickedAreasRaw = formData
-    .getAll("areas")
-    .map(v => String(v).trim())
-    .filter(Boolean);
+    const pickedAreasRaw = formData
+        .getAll('areas')
+        .map(v => String(v).trim())
+        .filter(Boolean);
 
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate))
-    return { ok: false, message: "Work date must be YYYY-MM-DD." };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate))
+        return { ok: false, message: 'Work date must be YYYY-MM-DD.' };
 
-  if (!/^\d{2}:\d{2}$/.test(startTime))
-    return { ok: false, message: "Start time must be HH:MM (24h)." };
+    if (!/^\d{2}:\d{2}$/.test(startTime))
+        return { ok: false, message: 'Start time must be HH:MM (24h).' };
 
-  const rawAreas = Array.from(
-    new Set([user.area ?? "", ...pickedAreasRaw].filter(Boolean)),
-  );
+    const rawAreas = Array.from(
+        new Set([user.area ?? '', ...pickedAreasRaw].filter(Boolean)),
+    );
 
-  const areas = Array.from(
-    new Set(
-      rawAreas
-        .map(a => canonicalAreaLabel(user.sort, a))
-        .filter(Boolean) as string[],
-    ),
-  );
+    const areas = Array.from(
+        new Set(
+            rawAreas
+                .map(a => canonicalAreaLabel(user.sort, a))
+                .filter(Boolean) as string[],
+        ),
+    );
 
-  if (areas.length === 0) {
-    return { ok: false, message: "No valid area selected for this sort." };
-  }
+    if (areas.length === 0) {
+        return { ok: false, message: 'No valid area selected for this sort.' };
+    }
 
-  // Either sequential (simple)...
-  for (const area of areas) {
-    await sql`
+    // Either sequential (simple)...
+    for (const area of areas) {
+        await sql`
       insert into area_start_times
         (sort, area, work_date, start_time, notes, updated_by, updated_at)
       values
@@ -108,18 +111,18 @@ export async function upsertStartTimeAction(
             updated_by = excluded.updated_by,
             updated_at = now()
     `;
-  }
+    }
 
-  // ...or parallel (faster, still fine)
-  // await Promise.all(areas.map(area => sql`...same insert...`));
+    // ...or parallel (faster, still fine)
+    // await Promise.all(areas.map(area => sql`...same insert...`));
 
-  revalidatePath("/supervisor");
-  revalidatePath("/dashboard");
+    revalidatePath('/supervisor');
+    revalidatePath('/dashboard');
 
-  return {
-    ok: true,
-    message: `Saved ${startTime} for ${areas.length} area${areas.length === 1 ? "" : "s"}.`,
-  };
+    return {
+        ok: true,
+        message: `Saved ${startTime} for ${areas.length} area${areas.length === 1 ? '' : 's'}.`,
+    };
 }
 
 export async function loginAction(
@@ -198,17 +201,19 @@ export async function upsertUserAction(_prev: any, formData: FormData) {
     const area = String(formData.get('area') || '').trim();
     const subArea = String(formData.get('subArea') || '').trim();
 
-    // NEW: sort can be overridden only for specific supervisor IDs
+    // Sort can be overridden only for specific supervisor IDs
     const requestedSort = String(formData.get('sort') || '').trim();
-    const SORT_OVERRIDE_IDS = new Set(['1234567']); // same list as client (or move to shared config)
-    const sortToUse = SORT_OVERRIDE_IDS.has(me.employee_id) && requestedSort ? requestedSort : me.sort;
-    
+    const sortToUse =
+        SORT_OVERRIDE_IDS.has(me.employee_id) && requestedSort
+            ? requestedSort
+            : me.sort;
+
     if (!/^\d{7}$/.test(employeeId))
         return bad('Employee ID must be exactly 7 digits.');
     if (!/^\d{4,8}$/.test(pin)) return bad('PIN must be 4–8 digits.');
     if (role !== 'employee' && role !== 'supervisor')
         return bad('Role must be employee or supervisor.');
-    
+
     if (!sortToUse) return bad('Your account is missing a sort.');
     if (!area) return bad('Area is required.');
     if (!me.sort) return bad('Your account is missing a sort.');
