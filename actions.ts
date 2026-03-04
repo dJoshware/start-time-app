@@ -62,18 +62,15 @@ export async function upsertStartTimeAction(
   formData: FormData,
 ): Promise<{ ok: boolean; message?: string }> {
   const user = await requireSupervisor();
-
   if (!user.sort) return { ok: false, message: "Your account is missing a sort." };
 
   const workDate = String(formData.get("workDate") || "").trim();
   const startTime = String(formData.get("startTime") || "").trim();
   const notesRaw = String(formData.get("notes") || "").trim();
 
-  // checkboxes: name="areas" value="Outbound"
   const pickedAreasRaw = formData
     .getAll("areas")
-    .map(v => String(v))
-    .map(s => s.trim())
+    .map(v => String(v).trim())
     .filter(Boolean);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate))
@@ -82,34 +79,39 @@ export async function upsertStartTimeAction(
   if (!/^\d{2}:\d{2}$/.test(startTime))
     return { ok: false, message: "Start time must be HH:MM (24h)." };
 
-  // Always include their own area (if set)
-  const rawAreas = Array.from(new Set([user.area ?? "", ...pickedAreasRaw].filter(Boolean)));
+  const rawAreas = Array.from(
+    new Set([user.area ?? "", ...pickedAreasRaw].filter(Boolean)),
+  );
 
-  // Validate + canonicalize against AREA_MAP for this sort
-  const areas = Array.from(new Set(
-  rawAreas
-    .map(a => canonicalAreaLabel(user.sort, a))
-    .filter(Boolean) as string[]
-));
+  const areas = Array.from(
+    new Set(
+      rawAreas
+        .map(a => canonicalAreaLabel(user.sort, a))
+        .filter(Boolean) as string[],
+    ),
+  );
 
   if (areas.length === 0) {
     return { ok: false, message: "No valid area selected for this sort." };
   }
 
-  const rows = areas.map(area => sql`
-      (${user.sort}, ${area}, ${workDate}::date, ${startTime}::time, ${notesRaw || null}, ${user.employee_id}, now())
-    `);
-    
+  // Either sequential (simple)...
+  for (const area of areas) {
     await sql`
       insert into area_start_times
         (sort, area, work_date, start_time, notes, updated_by, updated_at)
-      values ${sql(rows)}
+      values
+        (${user.sort}, ${area}, ${workDate}::date, ${startTime}::time, ${notesRaw || null}, ${user.employee_id}, now())
       on conflict (sort, area, work_date) do update
         set start_time = excluded.start_time,
             notes = excluded.notes,
             updated_by = excluded.updated_by,
             updated_at = now()
     `;
+  }
+
+  // ...or parallel (faster, still fine)
+  // await Promise.all(areas.map(area => sql`...same insert...`));
 
   revalidatePath("/supervisor");
   revalidatePath("/dashboard");
