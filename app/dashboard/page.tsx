@@ -372,31 +372,36 @@ export default async function DashboardPage({
 
             {/* Week strip */}
             <section className='space-y-6'>
-                <div className='flex items-center justify-between'>
-                    <form
-                        action='/dashboard'
-                        method='get'
-                        className='flex items-center gap-2'>
-                        <input
-                            type='hidden'
-                            name='beta'
-                            value='1'
-                        />
+                <div className='flex items-center'>
+                    <div className='flex font-semibold items-center mr-2'>
+                        <form
+                            action='/dashboard'
+                            method='get'
+                            className='flex items-center gap-2'>
+                            <input
+                                type='hidden'
+                                name='beta'
+                                value='1'
+                            />
 
-                        <AutoSubmitSelect
-                            name='sort'
-                            defaultValue={selectedSort}
-                            className='h-9 rounded-md border border-input bg-transparent px-3 text-md'>
-                            <option value='preload'>Preload</option>
-                            <option value='sunrise'>Sunrise</option>
-                            <option value='day'>Day</option>
-                            <option value='twilight'>Twilight</option>
-                            <option value='midnight'>Midnight</option>
-                        </AutoSubmitSelect>
-                    </form>
-                    <span className='text-xs text-muted-foreground'>
-                        Today is highlighted
-                    </span>
+                            <AutoSubmitSelect
+                                name='sort'
+                                defaultValue={selectedSort}
+                                className='h-9 rounded-md border border-input bg-transparent px-3 text-md'>
+                                <option value='preload'>Preload</option>
+                                <option value='sunrise'>Sunrise</option>
+                                <option value='day'>Day</option>
+                                <option value='twilight'>Twilight</option>
+                                <option value='midnight'>Midnight</option>
+                            </AutoSubmitSelect>
+                        </form>
+                    </div>
+                    <div className='flex flex-1 items-center justify-between'>
+                        <div className='font-semibold'>Sort</div>
+                        <span className='text-xs text-muted-foreground'>
+                            Today is highlighted
+                        </span>
+                    </div>
                 </div>
                 <span className='ml-3 text-xs text-muted-foreground'>
                     Scroll vertically for other areas
