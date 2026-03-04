@@ -65,7 +65,7 @@ export default async function SupervisorPage({
         where st.sort = ${user.sort}
             ${areaFilter ? sql`and st.area = ${areaFilter}` : sql``}
         order by st.updated_at desc
-        limit 200
+        limit 20
     `;
 
     const employees = await sql<EmployeeRow[]>`
