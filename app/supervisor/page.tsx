@@ -91,6 +91,7 @@ export default async function SupervisorPage({
             supervisorName={user.full_name ?? "Supervisor"}
             supervisorSort={user.sort as SortKey}
             supervisorArea={user.area}
+            supervisorSubArea={user.sub_area}
             recent={recent}
             employees={employees}
         />
