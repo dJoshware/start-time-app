@@ -81,7 +81,9 @@ export default function SupervisorClient({
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(
         new Set(),
     );
-    const areasForSort = AREA_MAP[supervisorSort] ?? [];
+    // ADMIN: sort the NEW user will be created under
+    const [newUserSort, setNewUserSort] = React.useState<SortKey>(supervisorSort);
+    const areasForSort = AREA_MAP[newUserSort] ?? [];
     const [newArea, setNewArea] = React.useState(supervisorArea ?? "");
     const subAreasForNewArea =
         areasForSort.find(a => a.label === newArea)?.subAreas ?? [];
@@ -167,6 +169,13 @@ export default function SupervisorClient({
             setIsEdit(false);
         }
     }, [delState]);
+
+    // Keep newArea valid if sort changes
+    React.useEffect(() => {
+      if (newArea && !areasForSort.some(a => a.label === newArea)) {
+        setNewArea("");
+      }
+    }, [newUserSort]); // intentionally not depending on newArea to avoid extra resets
 
     return (
         <main className='mx-auto w-full max-w-5xl px-4 py-10 space-y-6'>
@@ -383,10 +392,36 @@ export default function SupervisorClient({
                         </div>
 
                         <div className='space-y-1'>
-                            <Label>Sort</Label>
-                            <p className='capitalize bg-secondary rounded-md text-sm py-2 pl-4'>
+                          <Label htmlFor='sortNew'>Sort</Label>
+                        
+                          {supervisorId === '7255540' ? (
+                            <>
+                              <select
+                                id='sortNew'
+                                name='sort'
+                                className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm capitalize'
+                                value={newUserSort}
+                                onChange={e => setNewUserSort(e.target.value as SortKey)}>
+                                {Object.keys(AREA_MAP).map(s => (
+                                  <option key={s} value={s} className='capitalize'>
+                                    {normArea(s)}
+                                  </option>
+                                ))}
+                              </select>
+                        
+                              <p className='text-xs text-muted-foreground'>
+                                This only affects the user you’re creating.
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              {/* Important: still submit the sort to the server */}
+                              <input type='hidden' name='sort' value={supervisorSort} />
+                              <p className='capitalize bg-secondary rounded-md text-sm py-2 pl-4'>
                                 {supervisorSort}
-                            </p>
+                              </p>
+                            </>
+                          )}
                         </div>
 
                         <div className='space-y-1'>
