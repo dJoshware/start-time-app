@@ -392,7 +392,7 @@ export default function SupervisorClient({
                             <select
                                 id='areaNew'
                                 name='area'
-                                value={newArea}
+                                defaultValue={supervisorArea}
                                 onChange={e => setNewArea(e.target.value)}
                                 className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'>
                                 <option value=''>Select area</option>
@@ -416,7 +416,7 @@ export default function SupervisorClient({
                                         id='subAreaNew'
                                         name='subArea'
                                         className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'
-                                        defaultValue=''>
+                                        defaultValue={supervisorSubArea}>
                                         <option value=''>
                                             Select sub-area
                                         </option>
