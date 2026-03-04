@@ -127,7 +127,7 @@ export default function SupervisorClient({
 
             return true;
         });
-    }, [employees, qName, qId, qRole, qActive, qArea, qSubArea]);
+    }, [employeesForSort, qName, qId, qRole, qActive, qArea, qSubArea]);
 
     function toggleSelected(id: string) {
         setSelectedIds(prev => {
