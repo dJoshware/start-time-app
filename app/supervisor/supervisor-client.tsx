@@ -404,7 +404,7 @@ export default function SupervisorClient({
                                 onChange={e => setNewUserSort(e.target.value as SortKey)}>
                                 {Object.keys(AREA_MAP).map(s => (
                                   <option key={s} value={s} className='capitalize'>
-                                    {normArea(s)}
+                                    {s}
                                   </option>
                                 ))}
                               </select>
