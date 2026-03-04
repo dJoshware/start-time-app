@@ -9,12 +9,7 @@ import {
     upsertUserAction,
     deleteUsersAction,
 } from "@/actions";
-import {
-    type SortKey,
-    AREA_MAP,
-    titleCase,
-    normArea,
-} from "@/lib/helpers";
+import { type SortKey, AREA_MAP, titleCase, normArea } from "@/lib/helpers";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +27,8 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+
+const SORT_OVERRIDE_ID = "7255540"; // must match SORT_OVERRIDE_IDS in actions.ts
 
 export default function SupervisorClient({
     supervisorId,
@@ -82,7 +79,8 @@ export default function SupervisorClient({
         new Set(),
     );
     // ADMIN: sort the NEW user will be created under
-    const [newUserSort, setNewUserSort] = React.useState<SortKey>(supervisorSort);
+    const [newUserSort, setNewUserSort] =
+        React.useState<SortKey>(supervisorSort);
     const areasForSort = AREA_MAP[newUserSort] ?? [];
     const [newArea, setNewArea] = React.useState(supervisorArea ?? "");
     const subAreasForNewArea =
@@ -96,25 +94,23 @@ export default function SupervisorClient({
         return recent.filter(r => r.area === recentArea);
     }, [recent, recentArea]);
 
-    const norm = (v: unknown) =>
-        String(v ?? "")
-            .trim()
-            .replace(/\s+/g, " ")
-            .toLowerCase();
-
     const employeesForSort = React.useMemo(() => {
-        const target = norm(supervisorSort);
-        return employees.filter(e => norm(e.sort) === target);
+        const target = normArea(supervisorSort);
+        return employees.filter(e => normArea(e.sort) === target);
     }, [employees, supervisorSort]);
-    
+
     const filteredEmployees = React.useMemo(() => {
-        const nName = norm(qName);
-        const nId = norm(qId);
-        const nArea = norm(qArea);
-        const nSub = norm(qSubArea);
+        const nName = normArea(qName);
+        const nId = normArea(qId);
+        const nArea = normArea(qArea);
+        const nSub = normArea(qSubArea);
+        const targetSort = normArea(supervisorSort);
 
         return employeesForSort.filter(e => {
-            if (nName && !norm(e.full_name).includes(nName)) return false;
+            // Hard guard: never show employees from a different sort
+            if (normArea(e.sort) !== targetSort) return false;
+
+            if (nName && !normArea(e.full_name).includes(nName)) return false;
             if (nId && !String(e.employee_id).includes(nId)) return false;
 
             if (qRole && e.role !== qRole) return false;
@@ -122,12 +118,21 @@ export default function SupervisorClient({
             if (qActive === "active" && !e.active) return false;
             if (qActive === "inactive" && e.active) return false;
 
-            if (nArea && !norm(e.area).includes(nArea)) return false;
-            if (nSub && !norm(e.sub_area).includes(nSub)) return false;
+            if (nArea && normArea(e.area) !== nArea) return false;
+            if (nSub && !normArea(e.sub_area).includes(nSub)) return false;
 
             return true;
         });
-    }, [employeesForSort, qName, qId, qRole, qActive, qArea, qSubArea]);
+    }, [
+        employeesForSort,
+        supervisorSort,
+        qName,
+        qId,
+        qRole,
+        qActive,
+        qArea,
+        qSubArea,
+    ]);
 
     function toggleSelected(id: string) {
         setSelectedIds(prev => {
@@ -169,6 +174,10 @@ export default function SupervisorClient({
     }
 
     React.useEffect(() => {
+        setQSubArea("");
+    }, [qArea]);
+
+    React.useEffect(() => {
         if (delState?.ok) {
             clearSelection();
             setIsEdit(false);
@@ -177,9 +186,9 @@ export default function SupervisorClient({
 
     // Keep newArea valid if sort changes
     React.useEffect(() => {
-      if (newArea && !areasForSort.some(a => a.label === newArea)) {
-        setNewArea("");
-      }
+        if (newArea && !areasForSort.some(a => a.label === newArea)) {
+            setNewArea("");
+        }
     }, [newUserSort]); // intentionally not depending on newArea to avoid extra resets
 
     return (
@@ -275,47 +284,72 @@ export default function SupervisorClient({
                         </Alert>
                     ) : null}
 
-                    <form action={stAction} className="grid gap-3 md:grid-cols-3">
-                      <div className="space-y-2 md:col-span-3">
-                        <Label>Apply to areas</Label>
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {areasForSort.map(a => (
-                            <label key={a.label} className="flex items-center gap-2 text-sm">
-                              <input
-                                type="checkbox"
-                                name="areas"
-                                value={a.label}
-                                defaultChecked={normArea(a.label) === normArea(supervisorArea)}
-                              />
-                              {a.label === "da" ? "DA" : titleCase(a.label)}
-                            </label>
-                          ))}
+                    <form
+                        action={stAction}
+                        className='grid gap-3 md:grid-cols-3'>
+                        <div className='space-y-2 md:col-span-3'>
+                            <Label>Apply to areas</Label>
+                            <div className='grid gap-2 sm:grid-cols-2'>
+                                {areasForSort.map(a => (
+                                    <label
+                                        key={a.label}
+                                        className='flex items-center gap-2 text-sm'>
+                                        <input
+                                            type='checkbox'
+                                            name='areas'
+                                            value={a.label}
+                                            defaultChecked={
+                                                normArea(a.label) ===
+                                                normArea(supervisorArea)
+                                            }
+                                        />
+                                        {a.label === "da"
+                                            ? "DA"
+                                            : titleCase(a.label)}
+                                    </label>
+                                ))}
+                            </div>
+                            <p className='text-xs text-muted-foreground'>
+                                Your own area is always included automatically.
+                            </p>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          Your own area is always included automatically.
-                        </p>
-                      </div>
-                    
-                      <div className="space-y-1">
-                        <Label htmlFor="workDate">Work date</Label>
-                        <Input id="workDate" name="workDate" type="date" required />
-                      </div>
-                    
-                      <div className="space-y-1">
-                        <Label htmlFor="startTime">Start time</Label>
-                        <Input id="startTime" name="startTime" type="time" required />
-                      </div>
-                    
-                      <div className="space-y-1 md:col-span-3">
-                        <Label htmlFor="notes">Notes</Label>
-                        <Input id="notes" name="notes" placeholder="Optional notes" />
-                      </div>
-                    
-                      <div className="md:col-span-3">
-                        <Button type="submit" disabled={stPending}>
-                          {stPending ? "Saving..." : "Save Start Time"}
-                        </Button>
-                      </div>
+
+                        <div className='space-y-1'>
+                            <Label htmlFor='workDate'>Work date</Label>
+                            <Input
+                                id='workDate'
+                                name='workDate'
+                                type='date'
+                                required
+                            />
+                        </div>
+
+                        <div className='space-y-1'>
+                            <Label htmlFor='startTime'>Start time</Label>
+                            <Input
+                                id='startTime'
+                                name='startTime'
+                                type='time'
+                                required
+                            />
+                        </div>
+
+                        <div className='space-y-1 md:col-span-3'>
+                            <Label htmlFor='notes'>Notes</Label>
+                            <Input
+                                id='notes'
+                                name='notes'
+                                placeholder='Optional notes'
+                            />
+                        </div>
+
+                        <div className='md:col-span-3'>
+                            <Button
+                                type='submit'
+                                disabled={stPending}>
+                                {stPending ? "Saving..." : "Save Start Time"}
+                            </Button>
+                        </div>
                     </form>
                 </CardContent>
             </Card>
@@ -397,36 +431,47 @@ export default function SupervisorClient({
                         </div>
 
                         <div className='space-y-1'>
-                          <Label htmlFor='sortNew'>Sort</Label>
-                        
-                          {supervisorId === '7255540' ? (
-                            <>
-                              <select
-                                id='sortNew'
-                                name='sort'
-                                className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm capitalize'
-                                value={newUserSort}
-                                onChange={e => setNewUserSort(e.target.value as SortKey)}>
-                                {Object.keys(AREA_MAP).map(s => (
-                                  <option key={s} value={s}>
-                                    {normArea(s)}
-                                  </option>
-                                ))}
-                              </select>
-                        
-                              <p className='text-xs text-muted-foreground'>
-                                This only affects the user you’re creating.
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              {/* Important: still submit the sort to the server */}
-                              <input type='hidden' name='sort' value={supervisorSort} />
-                              <p className='capitalize bg-secondary rounded-md text-sm py-2 pl-4'>
-                                {supervisorSort}
-                              </p>
-                            </>
-                          )}
+                            <Label htmlFor='sortNew'>Sort</Label>
+
+                            {supervisorId === SORT_OVERRIDE_ID ? (
+                                <>
+                                    <select
+                                        id='sortNew'
+                                        name='sort'
+                                        className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm capitalize'
+                                        value={newUserSort}
+                                        onChange={e =>
+                                            setNewUserSort(
+                                                e.target.value as SortKey,
+                                            )
+                                        }>
+                                        {Object.keys(AREA_MAP).map(s => (
+                                            <option
+                                                key={s}
+                                                value={s}>
+                                                {normArea(s)}
+                                            </option>
+                                        ))}
+                                    </select>
+
+                                    <p className='text-xs text-muted-foreground'>
+                                        This only affects the user you’re
+                                        creating.
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Important: still submit the sort to the server */}
+                                    <input
+                                        type='hidden'
+                                        name='sort'
+                                        value={supervisorSort}
+                                    />
+                                    <p className='capitalize bg-secondary rounded-md text-sm py-2 pl-4'>
+                                        {supervisorSort}
+                                    </p>
+                                </>
+                            )}
                         </div>
 
                         <div className='space-y-1'>
@@ -620,13 +665,15 @@ export default function SupervisorClient({
                                 value={qArea}
                                 onChange={e => setQArea(e.target.value as any)}>
                                 <option value=''>All</option>
-                                <option value='package car'>Package Car</option>
-                                <option value='outbound'>Outbound</option>
-                                <option value='unload'>Unload</option>
-                                <option value='smalls'>Smalls</option>
-                                <option value='tender'>Tender</option>
-                                <option value='da'>DA</option>
-                                <option value='dispatch'>Dispatch</option>
+                                {areasForSort.map(a => (
+                                    <option
+                                        key={a.label}
+                                        value={normArea(a.label)}>
+                                        {a.label === "da"
+                                            ? "DA"
+                                            : titleCase(a.label)}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
@@ -640,10 +687,19 @@ export default function SupervisorClient({
                                     setQSubArea(e.target.value as any)
                                 }>
                                 <option value=''>All</option>
-                                <option value='metro center'>
-                                    Metro Center
-                                </option>
-                                <option value='east center'>East Center</option>
+                                {(
+                                    areasForSort.find(
+                                        a =>
+                                            normArea(a.label) ===
+                                            normArea(qArea),
+                                    )?.subAreas ?? []
+                                ).map(sa => (
+                                    <option
+                                        key={sa}
+                                        value={normArea(sa)}>
+                                        {titleCase(sa)}
+                                    </option>
+                                ))}
                             </select>
                         </div>
 
