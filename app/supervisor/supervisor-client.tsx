@@ -394,7 +394,6 @@ export default function SupervisorClient({
                             <select
                                 id='areaNew'
                                 name='area'
-                                {/* defaultValue={supervisorArea ?? ""} */}
                                 value={newArea}
                                 onChange={e => setNewArea(e.target.value)}
                                 className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'>
