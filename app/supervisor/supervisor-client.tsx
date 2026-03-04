@@ -5,10 +5,15 @@ import Link from "next/link";
 import type { RecentRow, EmployeeRow } from "./page";
 import {
     setAnnouncementAction,
-    upsertPreloadStartTimeAction,
+    upsertStartTimeAction,
     upsertUserAction,
     deleteUsersAction,
 } from "@/actions";
+import {
+    type SortKey,
+    AREA_MAP,
+    titleCase
+} from "@/lib/helpers";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,11 +35,15 @@ import {
 export default function SupervisorClient({
     supervisorId,
     supervisorName,
+    supervisorSort,
+    supervisorArea,
     recent,
     employees,
 }: {
     supervisorId: string;
     supervisorName: string;
+    supervisorSort: SortKey;
+    supervisorArea: string | null;
     recent: RecentRow[];
     employees: EmployeeRow[];
 }) {
@@ -43,7 +52,7 @@ export default function SupervisorClient({
         null,
     );
     const [stState, stAction, stPending] = React.useActionState(
-        upsertPreloadStartTimeAction,
+        upsertStartTimeAction,
         null,
     );
     const [userState, userAction, userPending] = React.useActionState(
@@ -57,38 +66,58 @@ export default function SupervisorClient({
 
     const [qName, setQName] = React.useState("");
     const [qId, setQId] = React.useState("");
+    const [qArea, setQArea] = React.useState("");
+    const [qSubArea, setQSubArea] = React.useState("");
     const [qRole, setQRole] = React.useState<"" | "employee" | "supervisor">(
         "",
     );
     const [qActive, setQActive] = React.useState<"" | "active" | "inactive">(
         "",
     );
-    // Area is assumed preload for now
-    const qArea = "Preload";
     const [isEdit, setIsEdit] = React.useState(false);
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(
         new Set(),
     );
+    const areasForSort = AREA_MAP[supervisorSort] ?? [];
+    const [newArea, setNewArea] = React.useState("");
+    const subAreasForNewArea =
+        areasForSort.find(a => a.label === newArea)?.subAreas ?? [];
+    const [recentArea, setRecentArea] = React.useState<string>(
+        supervisorArea ?? "",
+    );
+
+    const visibleRecent = React.useMemo(() => {
+        if (!recentArea) return recent;
+        return recent.filter(r => r.area === recentArea);
+    }, [recent, recentArea]);
+
+    const norm = (v: unknown) =>
+        String(v ?? "")
+            .trim()
+            .replace(/\s+/g, " ")
+            .toLowerCase();
 
     const filteredEmployees = React.useMemo(() => {
-        const name = qName.trim().toLowerCase();
-        const id = qId.trim();
+        const nName = norm(qName);
+        const nId = norm(qId);
+        const nArea = norm(qArea);
+        const nSub = norm(qSubArea);
 
         return employees.filter(e => {
-            const fullName = (e.full_name ?? "").toLowerCase();
+            if (nName && !norm(e.full_name).includes(nName)) return false;
+            if (nId && !String(e.employee_id).includes(nId)) return false;
 
-            if (name && !fullName.includes(name)) return false;
-            if (id && !e.employee_id.includes(id)) return false;
             if (qRole && e.role !== qRole) return false;
+
             if (qActive === "active" && !e.active) return false;
             if (qActive === "inactive" && e.active) return false;
 
-            // area assumed preload
-            if (qArea && qArea !== "Preload") return false;
+            if (nArea && !norm(e.area).includes(nArea)) return false;
+            if (nSub && !norm(e.sub_area).includes(nSub)) return false;
 
             return true;
         });
-    }, [employees, qName, qId, qRole, qActive]);
+    }, [employees, qName, qId, qRole, qActive, qArea, qSubArea]);
 
     function toggleSelected(id: string) {
         setSelectedIds(prev => {
@@ -103,24 +132,27 @@ export default function SupervisorClient({
         setSelectedIds(new Set());
     }
 
-    const allVisibleIds = React.useMemo(
-        () => filteredEmployees.map(e => e.employee_id),
-        [filteredEmployees],
+    const editableVisibleIds = React.useMemo(
+        () =>
+            filteredEmployees
+                .filter(e => supervisorArea && e.area === supervisorArea)
+                .map(e => e.employee_id),
+        [filteredEmployees, supervisorArea],
     );
 
     const allVisibleSelected =
-        allVisibleIds.length > 0 &&
-        allVisibleIds.every(id => selectedIds.has(id));
+        editableVisibleIds.length > 0 &&
+        editableVisibleIds.every(id => selectedIds.has(id));
 
     function toggleSelectAllVisible() {
         setSelectedIds(prev => {
             const next = new Set(prev);
             if (allVisibleSelected) {
                 // unselect all visible
-                allVisibleIds.forEach(id => next.delete(id));
+                editableVisibleIds.forEach(id => next.delete(id));
             } else {
                 // select all visible
-                allVisibleIds.forEach(id => next.add(id));
+                editableVisibleIds.forEach(id => next.add(id));
             }
             return next;
         });
@@ -163,7 +195,10 @@ export default function SupervisorClient({
                     <CardTitle className='text-base'>
                         Set Announcement
                     </CardTitle>
-                    <Badge variant='secondary'>Sort-wide</Badge>
+                    <Badge variant='secondary'>
+                        Your work area:{" "}
+                        {supervisorArea ? titleCase(supervisorArea) : ""}
+                    </Badge>
                 </CardHeader>
                 <CardContent className='space-y-3'>
                     {annState?.ok === false ? (
@@ -184,7 +219,11 @@ export default function SupervisorClient({
                                 id='message'
                                 name='message'
                                 rows={3}
-                                placeholder='Only your sort will see what you post.'
+                                placeholder={
+                                    supervisorArea
+                                        ? `No one outside of ${titleCase(supervisorArea)} will see what you post.`
+                                        : "No one outside of your area will see what you post."
+                                }
                             />
                         </div>
 
@@ -201,10 +240,11 @@ export default function SupervisorClient({
             <Card>
                 <CardHeader>
                     <CardTitle className='text-base'>
-                        Set Start Time {/* Add sort JSX */}
+                        Set Start Time for{" "}
+                        {supervisorArea ? titleCase(supervisorArea) : ""}
                     </CardTitle>
                     <p className='text-sm text-muted-foreground'>
-                        This sets the start time for your sort.
+                        This sets the start time for your work area.
                     </p>
                 </CardHeader>
 
@@ -256,19 +296,20 @@ export default function SupervisorClient({
                             <Button
                                 type='submit'
                                 disabled={stPending}>
-                                {stPending
-                                    ? "Saving..."
-                                    : "Save Start Time"} {/* Add sort JSX */}
+                                {stPending ? "Saving..." : "Save Start Time"}{" "}
+                                {/* Add sort JSX */}
                             </Button>
                         </div>
                     </form>
                 </CardContent>
             </Card>
 
-            {/* Add new users */}
+            {/* Add/Update users */}
             <Card>
                 <CardHeader>
-                    <CardTitle className='text-base'>Add/Update User</CardTitle>
+                    <CardTitle className='text-base'>
+                        Add/Update {titleCase(supervisorSort)} Employee
+                    </CardTitle>
                     <p className='text-sm text-muted-foreground'>
                         Creates a login for an employee. If the ID already
                         exists, it updates their info.
@@ -277,7 +318,7 @@ export default function SupervisorClient({
 
                 <CardContent className='space-y-3'>
                     {userState?.ok === false ? (
-                        <Alert>
+                        <Alert className='bg-red-400'>
                             <AlertTitle>Couldn’t save user</AlertTitle>
                             <AlertDescription>
                                 {userState.message}
@@ -286,7 +327,7 @@ export default function SupervisorClient({
                     ) : null}
 
                     {userState?.ok === true ? (
-                        <Alert>
+                        <Alert className='bg-green-300'>
                             <AlertTitle>Saved</AlertTitle>
                             <AlertDescription>
                                 {userState.message}
@@ -339,6 +380,58 @@ export default function SupervisorClient({
                             </select>
                         </div>
 
+                        <div className='space-y-1'>
+                            <Label>Sort</Label>
+                            <p className='capitalize bg-secondary rounded-md text-sm py-2 pl-4'>
+                                {supervisorSort}
+                            </p>
+                        </div>
+
+                        <div className='space-y-1'>
+                            <Label htmlFor='areaNew'>Area</Label>
+                            <select
+                                id='areaNew'
+                                name='area'
+                                value={newArea}
+                                onChange={e => setNewArea(e.target.value)}
+                                className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'>
+                                <option value=''>Select area</option>
+                                {areasForSort.map(a => (
+                                    <option
+                                        key={a.label}
+                                        value={a.label}>
+                                        {a.label === "da"
+                                            ? "DA"
+                                            : titleCase(a.label)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className='space-y-1'>
+                            {subAreasForNewArea.length > 0 ? (
+                                <div className='space-y-1'>
+                                    <Label htmlFor='subAreaNew'>Sub-Area</Label>
+                                    <select
+                                        id='subAreaNew'
+                                        name='subArea'
+                                        className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'
+                                        defaultValue=''>
+                                        <option value=''>
+                                            Select sub-area
+                                        </option>
+                                        {subAreasForNewArea.map(sa => (
+                                            <option
+                                                key={sa}
+                                                value={sa}>
+                                                {titleCase(sa)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            ) : null}
+                        </div>
+
                         <div className='md:col-span-2'>
                             <Button
                                 type='submit'
@@ -355,6 +448,19 @@ export default function SupervisorClient({
                 <CardHeader className='flex-row items-center justify-between space-y-0'>
                     <CardTitle className='text-base'>Recent Updates</CardTitle>
                     <Badge variant='secondary'>Last 20</Badge>
+                    <select
+                        className='h-9 rounded-md border border-input bg-transparent px-3 mt-1 text-sm'
+                        value={recentArea}
+                        onChange={e => setRecentArea(e.target.value)}>
+                        <option value=''>Sort-wide</option>
+                        {areasForSort.map(a => (
+                            <option
+                                key={a.label}
+                                value={a.label}>
+                                {a.label === "da" ? "DA" : titleCase(a.label)}
+                            </option>
+                        ))}
+                    </select>
                 </CardHeader>
                 <CardContent>
                     <div className='max-h-80 overflow-x-auto overflow-y-auto'>
@@ -370,18 +476,28 @@ export default function SupervisorClient({
                             </TableHeader>
 
                             <TableBody>
-                                {recent.map(r => (
+                                {visibleRecent.map(r => (
                                     <TableRow
-                                        key={`${r.employee_id}-${String(r.work_date)}`}>
+                                        key={`${r.updated_by ?? "unknown"}-${r.work_date}-${String(r.updated_at)}`}>
                                         <TableCell>
                                             {(() => {
-                                                const [y, m, d] = r.work_date.split("-");
-                                                const localDate = new Date(Number(y), Number(m) - 1, Number(d));
-                                                return localDate.toLocaleDateString("en-US", {
-                                                    weekday: "short",
-                                                    month: "short",
-                                                    day: "numeric",
-                                                }).replace(",", "");
+                                                const [y, m, d] =
+                                                    r.work_date.split("-");
+                                                const localDate = new Date(
+                                                    Number(y),
+                                                    Number(m) - 1,
+                                                    Number(d),
+                                                );
+                                                return localDate
+                                                    .toLocaleDateString(
+                                                        "en-US",
+                                                        {
+                                                            weekday: "short",
+                                                            month: "short",
+                                                            day: "numeric",
+                                                        },
+                                                    )
+                                                    .replace(",", "");
                                             })()}
                                         </TableCell>
                                         <TableCell>
@@ -419,7 +535,9 @@ export default function SupervisorClient({
             <Card>
                 <CardHeader className='flex-row items-center justify-between space-y-0'>
                     <div className='flex items-center gap-3'>
-                        <CardTitle className='text-base'>Employees</CardTitle>
+                        <CardTitle className='text-base'>
+                            {titleCase(supervisorSort)} Employees
+                        </CardTitle>
                     </div>
                     <Badge variant='secondary'>
                         {filteredEmployees.length} / {employees.length}
@@ -428,7 +546,7 @@ export default function SupervisorClient({
 
                 <CardContent className='space-y-4'>
                     {/* Filters */}
-                    <div className='grid gap-3 md:grid-cols-4'>
+                    <div className='grid gap-3 md:grid-cols-6'>
                         <div className='space-y-1'>
                             <Label htmlFor='filterName'>Name</Label>
                             <Input
@@ -450,6 +568,41 @@ export default function SupervisorClient({
                                     setQId(e.target.value.replace(/\D/g, ""))
                                 }
                             />
+                        </div>
+
+                        <div className='space-y-1'>
+                            <Label htmlFor='filterArea'>Area</Label>
+                            <select
+                                id='filterArea'
+                                className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'
+                                value={qArea}
+                                onChange={e => setQArea(e.target.value as any)}>
+                                <option value=''>All</option>
+                                <option value='package car'>Package Car</option>
+                                <option value='outbound'>Outbound</option>
+                                <option value='unload'>Unload</option>
+                                <option value='smalls'>Smalls</option>
+                                <option value='tender'>Tender</option>
+                                <option value='da'>DA</option>
+                                <option value='dispatch'>Dispatch</option>
+                            </select>
+                        </div>
+
+                        <div className='space-y-1'>
+                            <Label htmlFor='filterSubArea'>Sub-Area</Label>
+                            <select
+                                id='filterSubArea'
+                                className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'
+                                value={qSubArea}
+                                onChange={e =>
+                                    setQSubArea(e.target.value as any)
+                                }>
+                                <option value=''>All</option>
+                                <option value='metro center'>
+                                    Metro Center
+                                </option>
+                                <option value='east center'>East Center</option>
+                            </select>
                         </div>
 
                         <div className='space-y-1'>
@@ -481,16 +634,16 @@ export default function SupervisorClient({
                         </div>
                     </div>
 
-                    {/* Area note */}
-                    <div className='text-xs text-muted-foreground'>
-                        Area is currently assumed:{" "}
-                        <span className='font-medium'>Preload</span>
+                    {/* Sort note */}
+                    <div className='capitalize text-xs text-muted-foreground'>
+                        Your sort:{" "}
+                        <span className='font-medium'>{supervisorSort}</span>
                     </div>
 
                     {/* Table */}
                     <div className='max-h-86 overflow-x-auto overflow-y-auto'>
                         {delState?.ok === false ? (
-                            <Alert>
+                            <Alert className='bg-red-400'>
                                 <AlertTitle>Couldn’t delete</AlertTitle>
                                 <AlertDescription>
                                     {delState.message}
@@ -499,7 +652,7 @@ export default function SupervisorClient({
                         ) : null}
 
                         {delState?.ok === true ? (
-                            <Alert>
+                            <Alert className='bg-green-300'>
                                 <AlertTitle>Done</AlertTitle>
                                 <AlertDescription>
                                     {delState.message}
@@ -524,6 +677,7 @@ export default function SupervisorClient({
                                     <TableHead>Name</TableHead>
                                     <TableHead>Employee ID</TableHead>
                                     <TableHead>Area</TableHead>
+                                    <TableHead>Sub-Area</TableHead>
                                     <TableHead>Role</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Added</TableHead>
@@ -533,80 +687,101 @@ export default function SupervisorClient({
                             </TableHeader>
 
                             <TableBody>
-                                {filteredEmployees.map(e => (
-                                    <TableRow key={e.employee_id}>
-                                        {isEdit ? (
-                                            <TableCell className='w-10'>
-                                                <input
-                                                    type='checkbox'
-                                                    aria-label={`Select ${e.full_name ?? e.employee_id}`}
-                                                    checked={selectedIds.has(
-                                                        e.employee_id,
-                                                    )}
-                                                    onChange={() =>
-                                                        toggleSelected(
+                                {filteredEmployees.map(e => {
+                                    const canEditRow =
+                                        supervisorArea &&
+                                        e.area === supervisorArea;
+
+                                    return (
+                                        <TableRow key={e.employee_id}>
+                                            {isEdit ? (
+                                                <TableCell className='w-10'>
+                                                    <input
+                                                        type='checkbox'
+                                                        disabled={!canEditRow}
+                                                        checked={selectedIds.has(
                                                             e.employee_id,
-                                                        )
-                                                    }
-                                                />
+                                                        )}
+                                                        onChange={() =>
+                                                            canEditRow &&
+                                                            toggleSelected(
+                                                                e.employee_id,
+                                                            )
+                                                        }
+                                                    />
+                                                </TableCell>
+                                            ) : null}
+                                            <TableCell className='font-medium'>
+                                                {e.full_name ?? "—"}
                                             </TableCell>
-                                        ) : null}
-                                        <TableCell className='font-medium'>
-                                            {e.full_name ?? "—"}
-                                        </TableCell>
-                                        <TableCell>{e.employee_id}</TableCell>
-                                        <TableCell>Preload</TableCell>
-                                        <TableCell className='capitalize'>
-                                            {e.role}
-                                        </TableCell>
-                                        <TableCell>
-                                            {e.active ? (
-                                                <Badge variant='secondary'>
-                                                    Active
-                                                </Badge>
-                                            ) : (
-                                                <Badge variant='outline'>
-                                                    Inactive
-                                                </Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {new Date(
-                                                e.created_at,
-                                            ).toLocaleString("en-US", {
-                                                timeZone: "America/Chicago",
-                                                year: "numeric",
-                                                month: "2-digit",
-                                                day: "2-digit",
-                                                hour: "numeric",
-                                                minute: "2-digit",
-                                            })}
-                                        </TableCell>
-                                        <TableCell>
-                                            {e.last_signed_in
-                                                ? new Date(
-                                                      e.last_signed_in,
-                                                  ).toLocaleString("en-US", {
-                                                      timeZone:
-                                                          "America/Chicago",
-                                                      year: "numeric",
-                                                      month: "2-digit",
-                                                      day: "2-digit",
-                                                      hour: "numeric",
-                                                      minute: "2-digit",
-                                                  })
-                                                : "-"}
-                                        </TableCell>
-                                        <TableCell className='tabular-nums'>
-                                            {e.sign_in_count ?? 0}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                            <TableCell>
+                                                {e.employee_id}
+                                            </TableCell>
+                                            <TableCell>
+                                                {e.area
+                                                    ? titleCase(e.area)
+                                                    : "—"}
+                                            </TableCell>
+                                            <TableCell>
+                                                {e.sub_area
+                                                    ? titleCase(e.sub_area)
+                                                    : "—"}
+                                            </TableCell>
+                                            <TableCell className='capitalize'>
+                                                {e.role}
+                                            </TableCell>
+                                            <TableCell>
+                                                {e.active ? (
+                                                    <Badge variant='secondary'>
+                                                        Active
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant='outline'>
+                                                        Inactive
+                                                    </Badge>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {new Date(
+                                                    e.created_at,
+                                                ).toLocaleString("en-US", {
+                                                    timeZone: "America/Chicago",
+                                                    year: "numeric",
+                                                    month: "2-digit",
+                                                    day: "2-digit",
+                                                    hour: "numeric",
+                                                    minute: "2-digit",
+                                                })}
+                                            </TableCell>
+                                            <TableCell>
+                                                {e.last_signed_in
+                                                    ? new Date(
+                                                          e.last_signed_in,
+                                                      ).toLocaleString(
+                                                          "en-US",
+                                                          {
+                                                              timeZone:
+                                                                  "America/Chicago",
+                                                              year: "numeric",
+                                                              month: "2-digit",
+                                                              day: "2-digit",
+                                                              hour: "numeric",
+                                                              minute: "2-digit",
+                                                          },
+                                                      )
+                                                    : "-"}
+                                            </TableCell>
+                                            <TableCell className='tabular-nums'>
+                                                {e.sign_in_count ?? 0}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
 
                                 {filteredEmployees.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={isEdit ? 9 : 8}
+                                            colSpan={isEdit ? 10 : 9}
                                             className='text-sm text-muted-foreground'>
                                             No employees match your filters.
                                         </TableCell>

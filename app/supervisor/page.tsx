@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { redirect } from "next/navigation";
 import SupervisorClient from "./supervisor-client";
+import { type SortKey } from "@/lib/helpers";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,6 +16,8 @@ export type RecentRow = {
     updated_at: Date | string;
     updated_by: string | null;
     updated_by_name: string | null;
+    sort: string;
+    area: string;
 };
 
 export type EmployeeRow = {
@@ -25,30 +28,44 @@ export type EmployeeRow = {
     created_at: Date | string;
     last_signed_in: Date | string | null;
     sign_in_count: number;
-    // no area in DB yet, we’ll assume preload in UI
+    sort: string;
+    area: string | null;
+    sub_area: string | null;
 };
 
-export default async function SupervisorPage() {
+export default async function SupervisorPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ area?: string }> | { area?: string };
+}) {
     noStore();
 
     const user = await getSessionUser();
     if (!user) redirect("/login");
     if (user.role !== "supervisor") redirect("/dashboard");
 
+    const sp = await Promise.resolve(searchParams);
+    const selectedArea = (sp.area ?? user.area ?? "").trim();
+    const areaFilter =
+        selectedArea.toLowerCase() === "all" ? null : selectedArea;
+
     const recent = await sql<RecentRow[]>`
         select
+            st.sort,
             st.area,
             st.work_date::text as work_date,
             st.start_time,
             st.notes,
             st.updated_at,
             st.updated_by,
-            u.full_name as updated_by_name
+            u.full_name as updated_by_name,
+            coalesce(st.updated_by, '') as employee_id
         from area_start_times st
         left join users u on u.employee_id = st.updated_by
-        where st.area = 'preload'
+        where st.sort = ${user.sort}
+            ${areaFilter ? sql`and st.area = ${areaFilter}` : sql``}
         order by st.updated_at desc
-        limit 20
+        limit 200
     `;
 
     const employees = await sql<EmployeeRow[]>`
@@ -59,15 +76,21 @@ export default async function SupervisorPage() {
             active,
             created_at,
             last_signed_in,
-            sign_in_count
+            sign_in_count,
+            sort,
+            area,
+            sub_area
         from users
+        where sort = ${user.sort}
         order by created_at desc
     `;
 
     return (
         <SupervisorClient
             supervisorId={user.employee_id}
-            supervisorName={user.full_name ?? 'Supervisor'}
+            supervisorName={user.full_name ?? "Supervisor"}
+            supervisorSort={user.sort as SortKey}
+            supervisorArea={user.area}
             recent={recent}
             employees={employees}
         />
