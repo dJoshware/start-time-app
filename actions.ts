@@ -198,12 +198,19 @@ export async function upsertUserAction(_prev: any, formData: FormData) {
     const area = String(formData.get('area') || '').trim();
     const subArea = String(formData.get('subArea') || '').trim();
 
+    // NEW: sort can be overridden only for specific supervisor IDs
+    const requestedSort = String(formData.get('sort') || '').trim();
+    const SORT_OVERRIDE_IDS = new Set(['1234567']); // same list as client (or move to shared config)
+    const sortToUse = SORT_OVERRIDE_IDS.has(me.employee_id) && requestedSort ? requestedSort : me.sort;
+    
     if (!/^\d{7}$/.test(employeeId))
         return bad('Employee ID must be exactly 7 digits.');
     if (!/^\d{4,8}$/.test(pin)) return bad('PIN must be 4–8 digits.');
     if (role !== 'employee' && role !== 'supervisor')
         return bad('Role must be employee or supervisor.');
-
+    
+    if (!sortToUse) return bad('Your account is missing a sort.');
+    if (!area) return bad('Area is required.');
     if (!me.sort) return bad('Your account is missing a sort.');
     if (!area) return bad('Area is required.');
 
@@ -211,7 +218,7 @@ export async function upsertUserAction(_prev: any, formData: FormData) {
 
     await sql`
     insert into users (employee_id, pin_hash, role, full_name, sort, area, sub_area)
-    values (${employeeId}, ${pinHash}, ${role}, ${fullName || null}, ${me.sort}, ${area}, ${subArea || null})
+    values (${employeeId}, ${pinHash}, ${role}, ${fullName || null}, ${sortToUse}, ${area}, ${subArea || null})
     on conflict (employee_id) do update
       set pin_hash = excluded.pin_hash,
           role = excluded.role,
