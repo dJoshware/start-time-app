@@ -38,6 +38,7 @@ export default function SupervisorClient({
     supervisorName,
     supervisorSort,
     supervisorArea,
+    supervisorSubArea,
     recent,
     employees,
 }: {
@@ -45,6 +46,7 @@ export default function SupervisorClient({
     supervisorName: string;
     supervisorSort: SortKey;
     supervisorArea: string | null;
+    supervisorSubArea: string | null;
     recent: RecentRow[];
     employees: EmployeeRow[];
 }) {
