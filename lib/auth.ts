@@ -4,14 +4,15 @@ import { sql } from './db';
 
 const COOKIE_NAME = 'st_session';
 const SECRET = process.env.SESSION_SECRET!;
+if (!SECRET) throw new Error('SESSION_SECRET is not set');
 
 export type SessionUser = {
-  employee_id: string;
-  role: "employee" | "supervisor";
-  full_name: string | null;
-  sort: string;
-  area: string | null;
-  sub_area: string | null;
+    employee_id: string;
+    role: 'employee' | 'supervisor';
+    full_name: string | null;
+    sort: string;
+    area: string | null;
+    sub_area: string | null;
 };
 
 function sign(payload: string) {
@@ -53,15 +54,17 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     const ageMs = Date.now() - Number(ts);
     if (Number.isNaN(ageMs) || ageMs > 7 * 24 * 60 * 60 * 1000) return null;
 
-    const rows = await sql<{
-      employee_id: string;
-      role: "employee" | "supervisor";
-      full_name: string | null;
-      sort: string;
-      area: string | null;
-      sub_area: string | null;
-      active: boolean;
-    }[]>`
+    const rows = await sql<
+        {
+            employee_id: string;
+            role: 'employee' | 'supervisor';
+            full_name: string | null;
+            sort: string;
+            area: string | null;
+            sub_area: string | null;
+            active: boolean;
+        }[]
+    >`
       select employee_id, role, full_name, sort, area, sub_area, active
       from users
       where employee_id = ${employeeId}
@@ -69,7 +72,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     `;
     const user = rows[0];
     if (!user?.active) return null;
-    
+
     const { employee_id, role, full_name, sort, area, sub_area } = user;
     return { employee_id, role, full_name, sort, area, sub_area };
 }
