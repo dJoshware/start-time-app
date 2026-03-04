@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db';
+import { AREA_MAP, normArea } from '@/lib/helpers';
 import bcrypt from 'bcryptjs';
 import { setSession, getSessionUser } from '@/lib/auth';
 
@@ -20,6 +21,15 @@ async function requireSupervisor() {
         if (u.role !== 'supervisor') redirect('/dashboard');
         return u;
     });
+}
+
+function canonicalAreaLabel(sort: string, input: string): string | null {
+  const options = AREA_MAP[sort as keyof typeof AREA_MAP] ?? [];
+  const want = normArea(input);
+
+  // match against AREA_MAP labels (case/space insensitive)
+  const hit = options.find(o => normArea(o.label) === want);
+  return hit ? hit.label : null;
 }
 
 export async function setAnnouncementAction(
@@ -48,40 +58,66 @@ export async function setAnnouncementAction(
 }
 
 export async function upsertStartTimeAction(
-    _prev: { ok: boolean; message?: string } | null,
-    formData: FormData,
+  _prev: { ok: boolean; message?: string } | null,
+  formData: FormData,
 ): Promise<{ ok: boolean; message?: string }> {
-    const user = await requireSupervisor();
+  const user = await requireSupervisor();
 
-    if (!user.sort)
-        return { ok: false, message: 'Your account is missing a sort.' };
-    if (!user.area)
-        return { ok: false, message: 'Your account is missing an area.' };
+  if (!user.sort) return { ok: false, message: "Your account is missing a sort." };
 
-    const workDate = String(formData.get('workDate') || '').trim();
-    const startTime = String(formData.get('startTime') || '').trim();
-    const notes = String(formData.get('notes') || '').trim();
+  const workDate = String(formData.get("workDate") || "").trim();
+  const startTime = String(formData.get("startTime") || "").trim();
+  const notesRaw = String(formData.get("notes") || "").trim();
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
-        return { ok: false, message: 'Work date must be YYYY-MM-DD.' };
-    }
-    if (!/^\d{2}:\d{2}$/.test(startTime)) {
-        return { ok: false, message: 'Start time must be HH:MM (24h).' };
-    }
+  // checkboxes: name="areas" value="Outbound"
+  const pickedAreasRaw = formData
+    .getAll("areas")
+    .map(v => String(v))
+    .map(s => s.trim())
+    .filter(Boolean);
 
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate))
+    return { ok: false, message: "Work date must be YYYY-MM-DD." };
+
+  if (!/^\d{2}:\d{2}$/.test(startTime))
+    return { ok: false, message: "Start time must be HH:MM (24h)." };
+
+  // Always include their own area (if set)
+  const rawAreas = Array.from(new Set([user.area ?? "", ...pickedAreasRaw].filter(Boolean)));
+
+  // Validate + canonicalize against AREA_MAP for this sort
+  const areas: string[] = [];
+  for (const a of rawAreas) {
+    const canon = canonicalAreaLabel(user.sort, a);
+    if (canon) areas.push(canon);
+  }
+
+  if (areas.length === 0) {
+    return { ok: false, message: "No valid area selected for this sort." };
+  }
+
+  const rows = areas.map(area => sql`
+      (${user.sort}, ${area}, ${workDate}::date, ${startTime}::time, ${notesRaw || null}, ${user.employee_id}, now())
+    `);
+    
     await sql`
-    insert into area_start_times (sort, area, work_date, start_time, notes, updated_by, updated_at)
-    values (${user.sort}, ${user.area}, ${workDate}::date, ${startTime}::time, ${notes || null}, ${user.employee_id}, now())
-    on conflict (sort, area, work_date) do update
-      set start_time = excluded.start_time,
-          notes = excluded.notes,
-          updated_by = excluded.updated_by,
-          updated_at = now()
-  `;
+      insert into area_start_times
+        (sort, area, work_date, start_time, notes, updated_by, updated_at)
+      values ${sql(rows)}
+      on conflict (sort, area, work_date) do update
+        set start_time = excluded.start_time,
+            notes = excluded.notes,
+            updated_by = excluded.updated_by,
+            updated_at = now()
+    `;
 
-    revalidatePath('/supervisor');
-    revalidatePath('/dashboard');
-    return { ok: true };
+  revalidatePath("/supervisor");
+  revalidatePath("/dashboard");
+
+  return {
+    ok: true,
+    message: `Saved ${startTime} for ${areas.length} area${areas.length === 1 ? "" : "s"}.`,
+  };
 }
 
 export async function loginAction(
