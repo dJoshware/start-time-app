@@ -252,10 +252,6 @@ export default function SupervisorClient({
                                 </Label>
                             </div>
                             
-                            <Button type='submit' disabled={annPending}>
-                                {annPending ? "Posting..." : "Post Announcement"}
-                            </Button>
-                            
                             <Label htmlFor='message'>Message</Label>
                             <Textarea
                                 id='message'
