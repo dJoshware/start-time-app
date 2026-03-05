@@ -240,6 +240,22 @@ export default function SupervisorClient({
                         action={annAction}
                         className='space-y-3'>
                         <div className='space-y-1'>
+                            <div className='flex items-center gap-2 py-2'>
+                                <input 
+                                    type='checkbox' 
+                                    id='allAreas' 
+                                    name='allAreas' 
+                                    className='h-4 w-4'
+                                />
+                                <Label htmlFor='allAreas' className='text-sm font-normal cursor-pointer'>
+                                    Apply to all areas in {titleCase(supervisorSort)}
+                                </Label>
+                            </div>
+                            
+                            <Button type='submit' disabled={annPending}>
+                                {annPending ? "Posting..." : "Post Announcement"}
+                            </Button>
+                            
                             <Label htmlFor='message'>Message</Label>
                             <Textarea
                                 id='message'
