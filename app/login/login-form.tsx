@@ -57,7 +57,7 @@ export default function LoginForm({
                                 id='employeeId'
                                 name='employeeId'
                                 inputMode='numeric'
-                                placeholder='Ex: 1234567'
+                                placeholder='1234567'
                                 maxLength={7}
                                 aria-invalid={
                                     state?.ok === false &&
@@ -73,12 +73,6 @@ export default function LoginForm({
                                         pinRef.current?.focus();
                                 }}
                             />
-                            {/* {state?.ok === false &&
-                            state.field === "employeeId" ? (
-                                <p className='text-xs text-destructive'>
-                                    {state.message}
-                                </p>
-                            ) : null} */}
                         </div>
 
                         <div className='space-y-1'>
@@ -89,16 +83,11 @@ export default function LoginForm({
                                 name='pin'
                                 type='password'
                                 inputMode='numeric'
-                                placeholder='Last 4 of ID #'
+                                placeholder='••••'
                                 aria-invalid={
                                     state?.ok === false && state.field === "pin"
                                 }
                             />
-                            {/* {state?.ok === false && state.field === "pin" ? (
-                                <p className='text-xs text-destructive'>
-                                    {state.message}
-                                </p>
-                            ) : null} */}
                         </div>
 
                         <Button
