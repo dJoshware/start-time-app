@@ -64,6 +64,13 @@ export default function SupervisorClient({
         null,
     );
 
+    // Controlled inputs for Add/Update Employee form
+    const [newEmployeeId, setNewEmployeeId] = React.useState("");
+    const [newFullName, setNewFullName] = React.useState("");
+    const [newPin, setNewPin] = React.useState("");
+    const [newRole, setNewRole] = React.useState("");
+
+    // Employee table filters
     const [qName, setQName] = React.useState("");
     const [qId, setQId] = React.useState("");
     const [qArea, setQArea] = React.useState("");
@@ -191,6 +198,19 @@ export default function SupervisorClient({
         }
     }, [newUserSort]); // intentionally not depending on newArea to avoid extra resets
 
+    // Only clear fields that error from Add/Update Employee form
+    React.useEffect(() => {
+        if (userState?.ok === true) {
+            // Full reset on success
+            setNewEmployeeId("");
+            setNewFullName("");
+            setNewNewPin("");
+            setNewRole("employee");
+            setNewArea(supervisorArea ?? "");
+        }
+        // On error, do nothing - fields stay as-is
+    }, [userState]);
+    
     return (
         <main className='mx-auto w-full max-w-5xl px-4 py-10 space-y-6'>
             <header className='flex items-start justify-between gap-4'>
@@ -405,6 +425,8 @@ export default function SupervisorClient({
                             <Input
                                 id='employeeIdNew'
                                 name='employeeId'
+                                value={newEmployeeId}
+                                onChange={e => setNewEmployeeId(e.target.value.replace(/\D/g, ""))}
                                 inputMode='numeric'
                                 placeholder='1234567'
                             />
@@ -415,6 +437,8 @@ export default function SupervisorClient({
                             <Input
                                 id='fullNameNew'
                                 name='fullName'
+                                value={newFullName}
+                                onChange={e => setNewFullName(e.target.value)}
                                 placeholder='First Last'
                             />
                         </div>
@@ -425,6 +449,8 @@ export default function SupervisorClient({
                                 id='pinNew'
                                 name='pin'
                                 type='password'
+                                value={newPin}
+                                onChange={e => setNewPin(e.target.value)}
                                 inputMode='numeric'
                                 placeholder='••••'
                             />
@@ -435,6 +461,8 @@ export default function SupervisorClient({
                             <select
                                 id='roleNew'
                                 name='role'
+                                value={newRole}
+                                onChange={e => setNewRole(e.target.value)}
                                 className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'
                                 defaultValue='employee'>
                                 <option value='employee'>Employee</option>
