@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import * as React from "react";
 import type { LoginState } from "@/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,19 +15,27 @@ export default function LoginForm({
         formData: FormData,
     ) => Promise<LoginState>;
 }) {
-    const pinRef = useRef<HTMLInputElement>(null);
-    const employeeRef = useRef<HTMLInputElement>(null);
+    const employeeRef = React.useRef<HTMLInputElement>(null);
+    const [employeeId, setEmployeeId] = React.useState("");
+    const pinRef = React.useRef<HTMLInputElement>(null);
+    const [pin, setPin] = React.useState("");
 
-    const [state, formAction, isPending] = useActionState<
+    const [state, formAction, isPending] = React.useActionState<
         LoginState | null,
         FormData
     >(action, null);
 
     // Focus the field that has the error
-    useEffect(() => {
+    React.useEffect(() => {
         if (state?.ok === false) {
-            if (state.field === "employeeId") employeeRef.current?.focus();
-            if (state.field === "pin") pinRef.current?.focus();
+            if (state.field === "employeeId") {
+                setEmployeeId("");
+                employeeRef.current?.focus();
+            }
+            if (state.field === "pin") {
+                setPin("");
+                pinRef.current?.focus();
+            }
         }
     }, [state]);
 
@@ -63,14 +71,10 @@ export default function LoginForm({
                                     state?.ok === false &&
                                     state.field === "employeeId"
                                 }
+                                value={employeeId}
+                                onChange={e => setEmployeeId(e.target.value.replace(/\D/g, ""))}
                                 onInput={e => {
-                                    const input = e.currentTarget;
-                                    input.value = input.value.replace(
-                                        /\D/g,
-                                        "",
-                                    );
-                                    if (input.value.length === 7)
-                                        pinRef.current?.focus();
+                                    if (e.currentTarget.value.length === 7) pinRef.current?.focus();
                                 }}
                             />
                         </div>
@@ -87,6 +91,8 @@ export default function LoginForm({
                                 aria-invalid={
                                     state?.ok === false && state.field === "pin"
                                 }
+                                value={pin}
+                                onChange={e => setPin(e.target.value)}
                             />
                         </div>
 
