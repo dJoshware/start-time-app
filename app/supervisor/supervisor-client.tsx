@@ -204,7 +204,7 @@ export default function SupervisorClient({
             // Full reset on success
             setNewEmployeeId("");
             setNewFullName("");
-            setNewNewPin("");
+            setNewPin("");
             setNewRole("employee");
             setNewArea(supervisorArea ?? "");
         }
