@@ -41,22 +41,29 @@ export async function setAnnouncementAction(
     const user = await requireSupervisor();
 
     const message = String(formData.get('message') || '').trim();
-    if (!message)
-        return { ok: false, message: 'Announcement message is required.' };
+    const allAreas = formData.get('allAreas') === 'on'; // Check the new checkbox
 
-    if (!user.sort)
-        return { ok: false, message: 'Your account is missing a sort.' };
-    if (!user.area)
-        return { ok: false, message: 'Your account is missing an area.' };
+    if (!message) return { ok: false, message: 'Announcement message is required.' };
+    if (!user.sort) return { ok: false, message: 'Your account is missing a sort.' };
 
-    await sql`
-    insert into announcements (message, updated_by, sort, area, updated_at)
-    values (${message}, ${user.employee_id}, ${user.sort}, ${user.area}, now())
-  `;
+    // Determine which areas to target
+    const targetAreas = allAreas 
+        ? (AREA_MAP[user.sort as keyof typeof AREA_MAP] ?? []).map(a => a.label)
+        : [user.area];
+
+    if (targetAreas.length === 0) return { ok: false, message: 'No areas found.' };
+
+    // Loop through and insert for every area
+    for (const area of targetAreas) {
+        await sql`
+            insert into announcements (message, updated_by, sort, area, updated_at)
+            values (${message}, ${user.employee_id}, ${user.sort}, ${area}, now())
+        `;
+    }
 
     revalidatePath('/supervisor');
     revalidatePath('/dashboard');
-    return { ok: true };
+    return { ok: true, message: `Posted to ${targetAreas.length} area(s).` };
 }
 
 export async function upsertStartTimeAction(
