@@ -1,6 +1,6 @@
 {
     "name": "Start Time App",
-    "short_name": "STA",
+    "short_name": "Start Time App",
     "description": "UPS sort start times",
     "start_url": "/dashboard",
     "display": "standalone",
