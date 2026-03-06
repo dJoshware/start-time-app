@@ -6,6 +6,7 @@ import { sql } from '@/lib/db';
 import { AREA_MAP, normArea } from '@/lib/helpers';
 import bcrypt from 'bcryptjs';
 import { setSession, getSessionUser } from '@/lib/auth';
+import { sendPush } from './lib/push';
 
 const SORT_OVERRIDE_IDS = new Set(['7255540']); // must match client-side check in supervisor-client.tsx
 
@@ -43,15 +44,20 @@ export async function setAnnouncementAction(
     const message = String(formData.get('message') || '').trim();
     const allAreas = formData.get('allAreas') === 'on'; // Check the new checkbox
 
-    if (!message) return { ok: false, message: 'Announcement message is required.' };
-    if (!user.sort) return { ok: false, message: 'Your account is missing a sort.' };
+    if (!message)
+        return { ok: false, message: 'Announcement message is required.' };
+    if (!user.sort)
+        return { ok: false, message: 'Your account is missing a sort.' };
+    if (!user.area)
+        return { ok: false, message: 'Your account is missing an area.' };
 
     // Determine which areas to target
-    const targetAreas = allAreas 
+    const targetAreas = allAreas
         ? (AREA_MAP[user.sort as keyof typeof AREA_MAP] ?? []).map(a => a.label)
         : [user.area];
 
-    if (targetAreas.length === 0) return { ok: false, message: 'No areas found.' };
+    if (targetAreas.length === 0)
+        return { ok: false, message: 'No areas found.' };
 
     // Loop through and insert for every area
     for (const area of targetAreas) {
@@ -59,6 +65,13 @@ export async function setAnnouncementAction(
             insert into announcements (message, updated_by, sort, area, updated_at)
             values (${message}, ${user.employee_id}, ${user.sort}, ${area}, now())
         `;
+        await sendPush(
+            user.sort,
+            area,
+            'New Announcement',
+            message,
+            '/dashboard',
+        );
     }
 
     revalidatePath('/supervisor');
@@ -118,6 +131,16 @@ export async function upsertStartTimeAction(
             updated_by = excluded.updated_by,
             updated_at = now()
     `;
+    }
+
+    for (const area of areas) {
+        await sendPush(
+            user.sort,
+            area,
+            'Start Time Updated',
+            `${area} start time set to ${startTime} on ${workDate}`,
+            '/dashboard',
+        );
     }
 
     // ...or parallel (faster, still fine)
