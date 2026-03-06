@@ -177,6 +177,8 @@ export async function loginAction(
         };
     }
 
+    const isPWA = formData.get('isPWA') === 'true';
+
     const rows = await sql<
         {
             employee_id: string;
@@ -214,7 +216,7 @@ export async function loginAction(
         where employee_id = ${user.employee_id}
     `;
 
-    await setSession(user.employee_id);
+    await setSession(user.employee_id, isPWA);
     redirect('/dashboard');
 }
 

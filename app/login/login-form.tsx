@@ -60,6 +60,18 @@ export default function LoginForm({
                         className='space-y-3'>
                         <div className='space-y-1'>
                             <Label htmlFor='employeeId'>Employee ID</Label>
+                            <input
+                                type='hidden'
+                                name='isPWA'
+                                value={
+                                    typeof window !== "undefined" &&
+                                    window.matchMedia(
+                                        "(display-mode: standalone)",
+                                    ).matches
+                                        ? "true"
+                                        : "false"
+                                }
+                            />
                             <Input
                                 ref={employeeRef}
                                 id='employeeId'
@@ -72,9 +84,14 @@ export default function LoginForm({
                                     state.field === "employeeId"
                                 }
                                 value={employeeId}
-                                onChange={e => setEmployeeId(e.target.value.replace(/\D/g, ""))}
+                                onChange={e =>
+                                    setEmployeeId(
+                                        e.target.value.replace(/\D/g, ""),
+                                    )
+                                }
                                 onInput={e => {
-                                    if (e.currentTarget.value.length === 7) pinRef.current?.focus();
+                                    if (e.currentTarget.value.length === 7)
+                                        pinRef.current?.focus();
                                 }}
                             />
                         </div>

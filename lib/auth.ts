@@ -19,10 +19,9 @@ function sign(payload: string) {
     return crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
 }
 
-export async function setSession(employeeId: string) {
+export async function setSession(employeeId: string, extended = false) {
     const payload = `${employeeId}.${Date.now()}`;
     const sig = sign(payload);
-
     const c = await cookies();
 
     c.set(COOKIE_NAME, `${payload}.${sig}`, {
@@ -30,6 +29,9 @@ export async function setSession(employeeId: string) {
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
         path: '/',
+        maxAge: extended
+            ? 90 * 24 * 60 * 60 // 90 days for PWA home screen users
+            : 7 * 24 * 60 * 60, // 7 days for regular browser users
     });
 }
 
@@ -52,7 +54,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     if (sign(payload) !== sig) return null;
 
     const ageMs = Date.now() - Number(ts);
-    if (Number.isNaN(ageMs) || ageMs > 7 * 24 * 60 * 60 * 1000) return null;
+    if (Number.isNaN(ageMs) || ageMs > 90 * 24 * 60 * 60 * 1000) return null;
 
     const rows = await sql<
         {
