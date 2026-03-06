@@ -3,8 +3,8 @@ self.addEventListener('push', event => {
     event.waitUntil(
         self.registration.showNotification(data.title ?? 'Start Time App', {
             body: data.body ?? '',
-            icon: '/icon-192.png',
-            badge: '/icon-192.png',
+            icon: '/UPS-Logo-192.png',
+            badge: '/UPS-Logo-192.png',
             data: { url: data.url ?? '/dashboard' },
         }),
     );
