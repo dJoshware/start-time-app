@@ -19,6 +19,11 @@ export default function LoginForm({
     const [employeeId, setEmployeeId] = React.useState("");
     const pinRef = React.useRef<HTMLInputElement>(null);
     const [pin, setPin] = React.useState("");
+    const [isPWA, setIsPWA] = React.useState(false);
+
+    React.useEffect(() => {
+        setIsPWA(window.matchMedia("(display-mode: standalone)").matches);
+    }, []);
 
     const [state, formAction, isPending] = React.useActionState<
         LoginState | null,
@@ -63,14 +68,7 @@ export default function LoginForm({
                             <input
                                 type='hidden'
                                 name='isPWA'
-                                value={
-                                    typeof window !== "undefined" &&
-                                    window.matchMedia(
-                                        "(display-mode: standalone)",
-                                    ).matches
-                                        ? "true"
-                                        : "false"
-                                }
+                                value={isPWA ? "true" : "false"}
                             />
                             <Input
                                 ref={employeeRef}
