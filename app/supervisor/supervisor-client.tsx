@@ -210,7 +210,7 @@ export default function SupervisorClient({
         }
         // On error, do nothing - fields stay as-is
     }, [userState]);
-    
+
     return (
         <main className='mx-auto w-full max-w-5xl px-4 py-10 space-y-6'>
             <header className='flex items-start justify-between gap-4'>
@@ -261,17 +261,20 @@ export default function SupervisorClient({
                         className='space-y-3'>
                         <div className='space-y-1'>
                             <div className='flex items-center gap-2 py-2'>
-                                <input 
-                                    type='checkbox' 
-                                    id='allAreas' 
-                                    name='allAreas' 
+                                <input
+                                    type='checkbox'
+                                    id='allAreas'
+                                    name='allAreas'
                                     className='h-4 w-4'
                                 />
-                                <Label htmlFor='allAreas' className='text-sm font-normal cursor-pointer'>
-                                    Apply to all areas in {titleCase(supervisorSort)}
+                                <Label
+                                    htmlFor='allAreas'
+                                    className='text-sm font-normal cursor-pointer'>
+                                    Apply to all areas in{" "}
+                                    {titleCase(supervisorSort)}
                                 </Label>
                             </div>
-                            
+
                             <Label htmlFor='message'>Message</Label>
                             <Textarea
                                 id='message'
@@ -279,8 +282,8 @@ export default function SupervisorClient({
                                 rows={3}
                                 placeholder={
                                     supervisorArea
-                                        ? `No one outside of ${titleCase(supervisorArea)} will see what you post.`
-                                        : "No one outside of your area will see what you post."
+                                        ? `Post announcement to the ${titleCase(supervisorArea)} area or all areas in your sort.`
+                                        : "Post announcement to your area or all areas in your sort."
                                 }
                             />
                         </div>
@@ -426,7 +429,11 @@ export default function SupervisorClient({
                                 id='employeeIdNew'
                                 name='employeeId'
                                 value={newEmployeeId}
-                                onChange={e => setNewEmployeeId(e.target.value.replace(/\D/g, ""))}
+                                onChange={e =>
+                                    setNewEmployeeId(
+                                        e.target.value.replace(/\D/g, ""),
+                                    )
+                                }
                                 inputMode='numeric'
                                 placeholder='1234567'
                             />
