@@ -11,11 +11,27 @@ export default function NotificationPrompt() {
     React.useEffect(() => {
         if (!("Notification" in window) || !("serviceWorker" in navigator)) {
             setState("unsupported");
-        } else if (Notification.permission === "granted") {
-            setState("granted");
-        } else if (Notification.permission === "denied") {
-            setState("denied");
+            return;
         }
+        if (Notification.permission === "denied") {
+            setState("denied");
+            return;
+        }
+        if (Notification.permission === "granted") {
+            // Check if an active push subscription actually exists
+            navigator.serviceWorker.ready.then(reg => {
+                reg.pushManager.getSubscription().then(sub => {
+                    if (sub) {
+                        setState("granted"); // subscription exists, hide button
+                    } else {
+                        setState("idle"); // permission granted but no subscription, show button
+                    }
+                });
+            });
+            return;
+        }
+        // permission is 'default'
+        setState("idle");
     }, []);
 
     async function subscribe() {
