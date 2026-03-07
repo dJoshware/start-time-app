@@ -170,6 +170,27 @@ export default async function DashboardPage({
 
     type WeekRow = (typeof weekRows)[number];
 
+    // For non-Day sorts, check if Day sort has Sunday start times this week
+    const sundayIsos = Array.from({ length: 7 }, (_, i) =>
+        addDaysISO(todayIso, i),
+    ).filter(iso => isSundayISO(iso));
+
+    const daySundayRows =
+        selectedSort !== "day" && sundayIsos.length > 0
+            ? await sql<
+                  { work_date: string; area: string; start_time: string }[]
+              >`
+                select work_date::text as work_date, area, start_time
+                from area_start_times
+                where lower(trim(sort)) = 'day'
+                and work_date = any(${sundayIsos}::date[])
+            `
+            : [];
+
+    const daySundayDates = new Set(
+        daySundayRows.map(r => String(r.work_date).slice(0, 10)),
+    );
+
     const byArea = new Map<string, Map<string, WeekRow>>();
 
     for (const r of weekRowsOneSort) {
@@ -263,9 +284,7 @@ export default async function DashboardPage({
     const defaultAnn = myAreaAnn ?? firstAreaAnn;
 
     // Final chosen announcement
-    const ann = annParam
-        ? (annLookup.get(annParam) ?? defaultAnn)
-        : defaultAnn;
+    const ann = annParam ? (annLookup.get(annParam) ?? defaultAnn) : defaultAnn;
 
     const hourNow = chicagoHour();
     const isAfterSort = hourNow >= BUSINESS_DAY_CUTOFF_HOUR;
@@ -282,8 +301,32 @@ export default async function DashboardPage({
         : isTomorrow
           ? "Tomorrow"
           : weekdayNameISO(detailIso);
+
+    const myDetailRows =
+        selectedSort === mySort
+            ? weekRowsOneSort
+            : await sql<
+                  {
+                      area: string;
+                      work_date: string;
+                      start_time: string;
+                      notes: string | null;
+                      updated_at: Date | string;
+                  }[]
+              >`
+        select area, work_date::text as work_date, start_time, notes, updated_at
+        from area_start_times
+        where lower(trim(sort)) = ${mySort}
+          and lower(trim(area)) = ${myAreaKey ?? ""}
+          and work_date between ${windowStartIso}::date and ${windowEndIso}::date
+      `;
+
     const detailRow = myAreaKey
-        ? byArea.get(myAreaKey)?.get(detailIso)
+        ? myDetailRows.find(
+              r =>
+                  normArea(r.area) === myAreaKey &&
+                  String(r.work_date).slice(0, 10) === detailIso,
+          )
         : undefined;
 
     return (
@@ -459,14 +502,6 @@ export default async function DashboardPage({
                                             const updatedAt = row?.updated_at
                                                 ? fmtUpdatedAt(row.updated_at)
                                                 : null;
-                                            console.log(
-                                                "[Horizontal scroller] iso:",
-                                                iso,
-                                            );
-                                            console.log(
-                                                "[Horizontal scroller] row:",
-                                                row,
-                                            );
 
                                             return (
                                                 <Card
@@ -501,21 +536,55 @@ export default async function DashboardPage({
                                                     </CardHeader>
 
                                                     <CardContent className='space-y-3'>
-                                                        {time ? (
-                                                            <div
-                                                                className={
-                                                                    isToday
-                                                                        ? "text-4xl font-semibold"
-                                                                        : "text-3xl font-semibold"
-                                                                }>
-                                                                {time}
-                                                            </div>
-                                                        ) : (
-                                                            <div className='text-sm text-muted-foreground'>
-                                                                No start time
-                                                                posted yet.
-                                                            </div>
-                                                        )}
+                                                        {(() => {
+                                                            const isSunday =
+                                                                isSundayISO(
+                                                                    iso,
+                                                                );
+                                                            const isDaySort =
+                                                                selectedSort ===
+                                                                "day";
+                                                            const daySundayPosted =
+                                                                isSunday &&
+                                                                !isDaySort &&
+                                                                daySundayDates.has(
+                                                                    iso,
+                                                                );
+
+                                                            if (time) {
+                                                                return (
+                                                                    <div
+                                                                        className={
+                                                                            isToday
+                                                                                ? "text-4xl font-semibold"
+                                                                                : "text-3xl font-semibold"
+                                                                        }>
+                                                                        {time}
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            if (
+                                                                daySundayPosted
+                                                            ) {
+                                                                return (
+                                                                    <a
+                                                                        href={`/dashboard?sort=day`}
+                                                                        className='text-sm text-blue-600 underline hover:text-blue-800'>
+                                                                        View
+                                                                        Sunday
+                                                                        start
+                                                                        time →
+                                                                    </a>
+                                                                );
+                                                            }
+                                                            return (
+                                                                <div className='text-sm text-muted-foreground'>
+                                                                    No start
+                                                                    time posted
+                                                                    yet.
+                                                                </div>
+                                                            );
+                                                        })()}
 
                                                         {row?.notes ? (
                                                             <div className='text-sm'>
