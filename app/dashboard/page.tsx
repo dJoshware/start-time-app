@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import AutoSubmitSelect from "./AutoSubmitSelect";
 import NotificationPrompt from "./NotificationPrompt";
+import InstallPrompt from "./InstallPrompt";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -311,6 +312,7 @@ export default async function DashboardPage({
 
             <Separator className='my-6' />
 
+            <InstallPrompt />
             <NotificationPrompt />
 
             {/* Announcement */}
