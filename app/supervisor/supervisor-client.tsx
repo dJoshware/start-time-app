@@ -81,10 +81,17 @@ export default function SupervisorClient({
     const [qActive, setQActive] = React.useState<"" | "active" | "inactive">(
         "",
     );
+
     const [isEdit, setIsEdit] = React.useState(false);
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(
         new Set(),
     );
+
+    const [dateRows, setDateRows] = React.useState([
+        { id: 0, date: "", time: "" },
+    ]);
+    const nextId = React.useRef(1);
+
     // ADMIN: sort the NEW user will be created under
     const [newUserSort, setNewUserSort] =
         React.useState<SortKey>(supervisorSort);
@@ -152,6 +159,18 @@ export default function SupervisorClient({
 
     function clearSelection() {
         setSelectedIds(new Set());
+    }
+
+    function addDateRow() {
+        setDateRows(r => [...r, { id: nextId.current++, date: "", time: "" }]);
+    }
+    function removeDateRow(id: number) {
+        setDateRows(r => (r.length > 1 ? r.filter(x => x.id !== id) : r));
+    }
+    function updateDateRow(id: number, field: "date" | "time", value: string) {
+        setDateRows(r =>
+            r.map(x => (x.id === id ? { ...x, [field]: value } : x)),
+        );
     }
 
     const editableVisibleIds = React.useMemo(
@@ -312,7 +331,7 @@ export default function SupervisorClient({
                 <CardContent className='space-y-3'>
                     {stState?.ok === false ? (
                         <Alert>
-                            <AlertTitle>Couldn’t save</AlertTitle>
+                            <AlertTitle>Couldn't save</AlertTitle>
                             <AlertDescription>
                                 {stState.message}
                             </AlertDescription>
@@ -321,8 +340,8 @@ export default function SupervisorClient({
 
                     <form
                         action={stAction}
-                        className='grid gap-3 md:grid-cols-3'>
-                        <div className='space-y-2 md:col-span-3'>
+                        className='space-y-4'>
+                        <div className='space-y-2'>
                             <Label>Apply to areas</Label>
                             <div className='grid gap-2 sm:grid-cols-2'>
                                 {areasForSort.map(a => (
@@ -342,31 +361,67 @@ export default function SupervisorClient({
                                 ))}
                             </div>
                             <p className='text-xs text-muted-foreground'>
-                                Your own area is always included automatically.
+                                If nothing is checked, your own area is used.
                             </p>
                         </div>
 
-                        <div className='space-y-1'>
-                            <Label htmlFor='workDate'>Work date</Label>
-                            <Input
-                                id='workDate'
-                                name='workDate'
-                                type='date'
-                                required
-                            />
+                        <div className='space-y-2'>
+                            <Label>Dates & Start Times</Label>
+                            <div className='space-y-2'>
+                                {dateRows.map((row, idx) => (
+                                    <div
+                                        key={row.id}
+                                        className='flex items-center gap-2'>
+                                        <Input
+                                            type='date'
+                                            name={`workDate_${idx}`}
+                                            value={row.date}
+                                            onChange={e =>
+                                                updateDateRow(
+                                                    row.id,
+                                                    "date",
+                                                    e.target.value,
+                                                )
+                                            }
+                                            required
+                                            className='w-44'
+                                        />
+                                        <Input
+                                            type='time'
+                                            name={`startTime_${idx}`}
+                                            value={row.time}
+                                            onChange={e =>
+                                                updateDateRow(
+                                                    row.id,
+                                                    "time",
+                                                    e.target.value,
+                                                )
+                                            }
+                                            required
+                                            className='w-36'
+                                        />
+                                        {dateRows.length > 1 ? (
+                                            <button
+                                                type='button'
+                                                onClick={() =>
+                                                    removeDateRow(row.id)
+                                                }
+                                                className='text-muted-foreground hover:text-destructive text-lg leading-none'>
+                                                ×
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                            <button
+                                type='button'
+                                onClick={addDateRow}
+                                className='text-sm text-blue-600 hover:underline'>
+                                + Add another date
+                            </button>
                         </div>
 
                         <div className='space-y-1'>
-                            <Label htmlFor='startTime'>Start time</Label>
-                            <Input
-                                id='startTime'
-                                name='startTime'
-                                type='time'
-                                required
-                            />
-                        </div>
-
-                        <div className='space-y-1 md:col-span-3'>
                             <Label htmlFor='notes'>Notes</Label>
                             <Input
                                 id='notes'
@@ -375,13 +430,11 @@ export default function SupervisorClient({
                             />
                         </div>
 
-                        <div className='md:col-span-3'>
-                            <Button
-                                type='submit'
-                                disabled={stPending}>
-                                {stPending ? "Saving..." : "Save Start Time"}
-                            </Button>
-                        </div>
+                        <Button
+                            type='submit'
+                            disabled={stPending}>
+                            {stPending ? "Saving..." : "Save Start Time"}
+                        </Button>
                     </form>
                 </CardContent>
             </Card>

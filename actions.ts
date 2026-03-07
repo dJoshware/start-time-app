@@ -87,8 +87,6 @@ export async function upsertStartTimeAction(
     if (!user.sort)
         return { ok: false, message: 'Your account is missing a sort.' };
 
-    const workDate = String(formData.get('workDate') || '').trim();
-    const startTime = String(formData.get('startTime') || '').trim();
     const notesRaw = String(formData.get('notes') || '').trim();
 
     const pickedAreasRaw = formData
@@ -96,11 +94,23 @@ export async function upsertStartTimeAction(
         .map(v => String(v).trim())
         .filter(Boolean);
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate))
-        return { ok: false, message: 'Work date must be YYYY-MM-DD.' };
+    // Collect date+time pairs — submitted as dateTime_0, dateTime_1, etc.
+    const entries: { date: string; time: string }[] = [];
+    let i = 0;
+    while (formData.has(`workDate_${i}`)) {
+        const date = String(formData.get(`workDate_${i}`) || '').trim();
+        const time = String(formData.get(`startTime_${i}`) || '').trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(time)) {
+            entries.push({ date, time });
+        }
+        i++;
+    }
 
-    if (!/^\d{2}:\d{2}$/.test(startTime))
-        return { ok: false, message: 'Start time must be HH:MM (24h).' };
+    if (entries.length === 0)
+        return {
+            ok: false,
+            message: 'At least one valid date and time is required.',
+        };
 
     const rawAreas =
         pickedAreasRaw.length > 0
@@ -115,44 +125,43 @@ export async function upsertStartTimeAction(
         ),
     );
 
-    if (areas.length === 0) {
+    if (areas.length === 0)
         return { ok: false, message: 'No valid area selected for this sort.' };
-    }
-
-    // Either sequential (simple)...
-    for (const area of areas) {
-        await sql`
-      insert into area_start_times
-        (sort, area, work_date, start_time, notes, updated_by, updated_at)
-      values
-        (${user.sort}, ${area}, ${workDate}::date, ${startTime}::time, ${notesRaw || null}, ${user.employee_id}, now())
-      on conflict (sort, area, work_date) do update
-        set start_time = excluded.start_time,
-            notes = excluded.notes,
-            updated_by = excluded.updated_by,
-            updated_at = now()
-    `;
-    }
 
     for (const area of areas) {
-        await sendPush(
-            user.sort,
-            area,
-            'Start Time Updated',
-            `${area} start time set to ${startTime} on ${workDate}`,
-            '/dashboard',
-        );
+        for (const { date, time } of entries) {
+            await sql`
+                insert into area_start_times
+                    (sort, area, work_date, start_time, notes, updated_by, updated_at)
+                values
+                    (${user.sort}, ${area}, ${date}::date, ${time}::time, ${notesRaw || null}, ${user.employee_id}, now())
+                on conflict (sort, area, work_date) do update
+                    set start_time = excluded.start_time,
+                        notes = excluded.notes,
+                        updated_by = excluded.updated_by,
+                        updated_at = now()
+            `;
+        }
     }
 
-    // ...or parallel (faster, still fine)
-    // await Promise.all(areas.map(area => sql`...same insert...`));
+    for (const area of areas) {
+        for (const { date, time } of entries) {
+            await sendPush(
+                user.sort,
+                area,
+                'Start Time Updated',
+                `${area} start time set to ${time} on ${date}`,
+                '/dashboard',
+            );
+        }
+    }
 
     revalidatePath('/supervisor');
     revalidatePath('/dashboard');
 
     return {
         ok: true,
-        message: `Saved ${startTime} for ${areas.length} area${areas.length === 1 ? '' : 's'}.`,
+        message: `Saved ${entries.length} date${entries.length === 1 ? '' : 's'} for ${areas.length} area${areas.length === 1 ? '' : 's'}.`,
     };
 }
 
