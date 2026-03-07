@@ -12,14 +12,14 @@ function detectPlatform(): Platform {
         window.matchMedia("(display-mode: standalone)").matches ||
         ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
 
-        if (isStandalone) return null; // already installed, don't show
+    if (isStandalone) return null; // already installed, don't show
 
-        const isIOS = /iPhone|iPad|iPod/.test(ua) && !/CriOS|FxiOS/.test(ua); // Safari only on iOS
-        const isAndroid = /Android/.test(ua) && /Chrome/.test(ua) && !/SamsungBrowser/.test(ua);
+    const isIOS = /iPhone|iPad|iPod/.test(ua) && !/CriOS|FxiOS/.test(ua); // Safari only on iOS
+    const isAndroid = /Android/.test(ua) && /Chrome/.test(ua) && !/SamsungBrowser/.test(ua);
 
-        if (isIOS) return "ios";
-        if (isAndroid) return "android";
-        return null;
+    if (isIOS) return "ios";
+    if (isAndroid) return "android";
+    return null;
 }
 
 export default function InstallPrompt() {
