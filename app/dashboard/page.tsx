@@ -311,7 +311,7 @@ export default async function DashboardPage({
 
             <Separator className='my-6' />
 
-            <NotificationPrompt />
+            {/* <NotificationPrompt /> */}
 
             {/* Announcement */}
             {orderedAnnouncementsStrict.length ? (
