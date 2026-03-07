@@ -8,16 +8,18 @@ type Platform = "ios" | "android" | null;
 function detectPlatform(): Platform {
     if (typeof window === "undefined") return null;
     const ua = navigator.userAgent;
+
+    // If already running as installed PWA, don't show
     const isStandalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true);
+        ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true) ||
+        window.matchMedia("(display-mode: standalone)").matches;
+    if (isStandalone) return null;
 
-    if (isStandalone) return null; // already installed, don't show
+    const isIOS = /iPhone|iPad|iPod/.test(ua);
+    const isIOSSafari = isIOS && /Version\//.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+    const isAndroid = /Android/.test(ua) && /Chrome\//.test(ua) && !/SamsungBrowser/.test(ua);
 
-    const isIOS = /iPhone|iPad|iPod/.test(ua) && !/CriOS|FxiOS/.test(ua); // Safari only on iOS
-    const isAndroid = /Android/.test(ua) && /Chrome/.test(ua) && !/SamsungBrowser/.test(ua);
-
-    if (isIOS) return "ios";
+    if (isIOSSafari) return "ios";
     if (isAndroid) return "android";
     return null;
 }
