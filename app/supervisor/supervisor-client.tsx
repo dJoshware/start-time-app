@@ -333,10 +333,7 @@ export default function SupervisorClient({
                                             type='checkbox'
                                             name='areas'
                                             value={a.label}
-                                            defaultChecked={
-                                                normArea(a.label) ===
-                                                normArea(supervisorArea)
-                                            }
+                                            defaultChecked={false}
                                         />
                                         {a.label === "da"
                                             ? "DA"

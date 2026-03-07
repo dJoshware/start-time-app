@@ -102,9 +102,10 @@ export async function upsertStartTimeAction(
     if (!/^\d{2}:\d{2}$/.test(startTime))
         return { ok: false, message: 'Start time must be HH:MM (24h).' };
 
-    const rawAreas = Array.from(
-        new Set([user.area ?? '', ...pickedAreasRaw].filter(Boolean)),
-    );
+    const rawAreas =
+        pickedAreasRaw.length > 0
+            ? pickedAreasRaw
+            : [user.area ?? ''].filter(Boolean);
 
     const areas = Array.from(
         new Set(
