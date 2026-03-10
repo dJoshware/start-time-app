@@ -31,6 +31,7 @@ export type EmployeeRow = {
     sort: string;
     area: string | null;
     sub_area: string | null;
+    schedule: 'M-F' | 'T-S' | null;
 };
 
 export default async function SupervisorPage({
@@ -79,7 +80,8 @@ export default async function SupervisorPage({
             sign_in_count,
             sort,
             area,
-            sub_area
+            sub_area,
+            schedule
         from users
         where lower(trim(sort)) = lower(trim(${user.sort}))
         order by created_at desc
