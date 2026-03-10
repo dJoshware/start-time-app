@@ -889,6 +889,7 @@ export default function SupervisorClient({
                                     <TableHead>Employee ID</TableHead>
                                     <TableHead>Area</TableHead>
                                     <TableHead>Sub-Area</TableHead>
+                                    <TableHead>Schedule</TableHead>
                                     <TableHead>Role</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Added</TableHead>
@@ -937,6 +938,9 @@ export default function SupervisorClient({
                                                 {e.sub_area
                                                     ? titleCase(e.sub_area)
                                                     : "—"}
+                                            </TableCell>
+                                            <TableCell>
+                                                {e.schedule ?? ''}
                                             </TableCell>
                                             <TableCell className='capitalize'>
                                                 {e.role}
@@ -992,7 +996,7 @@ export default function SupervisorClient({
                                 {filteredEmployees.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={isEdit ? 10 : 9}
+                                            colSpan={isEdit ? 11 : 10}
                                             className='text-sm text-muted-foreground'>
                                             No employees match your filters.
                                         </TableCell>
