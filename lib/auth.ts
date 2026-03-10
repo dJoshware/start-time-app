@@ -66,6 +66,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
             area: string | null;
             sub_area: string | null;
             active: boolean;
+            schedule: 'M-F' | 'T-S' | null;
         }[]
     >`
       select employee_id, role, full_name, sort, area, sub_area, active, schedule
