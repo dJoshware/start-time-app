@@ -312,7 +312,7 @@ export default async function DashboardPage({
     
     const detailIso = nextWorkdayForSchedule(baseIso, user.schedule);
     // Label
-    const daysFromToday = Math.round(dateFromISO(detailIso).getTime() - dateFromISO(todayIso).getTime()) / 86400000);
+    const daysFromToday = Math.round((dateFromISO(detailIso).getTime() - dateFromISO(todayIso).getTime()) / 86400000);
     const detailLabel = daysFromToday === 0
         ? 'Today'
         : daysFromToday === 1
