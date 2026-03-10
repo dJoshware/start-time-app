@@ -288,19 +288,36 @@ export default async function DashboardPage({
 
     const hourNow = chicagoHour();
     const isAfterSort = hourNow >= BUSINESS_DAY_CUTOFF_HOUR;
-    // Base choice: Today vs Tomorrow
     const baseIso = isAfterSort ? addDaysISO(todayIso, 1) : todayIso;
-    // If base lands on Sunday, bump to Monday
-    const detailIso = isSundayISO(baseIso)
-        ? nextNonSundayISO(baseIso)
-        : baseIso;
+    
+    // Schedule-aware Sunday skipping
+    // M-F employees skip Saturday -> Monday
+    // T-S employees skip Sunday -> Tuesday
+    // No schedule set -> default behaviour (skip to Monday)
+    function nextWorkdayForSchedule(fromIso: string, schedule: 'M-F' | 'T-S' | null): string {
+        let iso = fromIso;
+        while (true) {
+            const wd = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' })
+                .format(dateFromISO(iso));
+            if (schedule === 'T-S') {
+                // T-S works Tue-Sat, off Sun-Mon
+                if (wd !== 'Sun' && wd !== 'Mon') return iso;
+            } else {
+                // M-F (or no schedule) works Mon-Fri, off Sat-Sun
+                if (wd !== 'Sat' && wd !== 'Sun') return iso;
+            }
+            iso = addDaysISO(iso, 1);
+        }
+    }
+    
+    const detailIso = nextWorkdayForSchedule(baseIso, user.schedule);
     // Label
-    const isTomorrow = detailIso === addDaysISO(todayIso, 1);
-    const detailLabel = !isAfterSort
-        ? "Today"
-        : isTomorrow
-          ? "Tomorrow"
-          : weekdayNameISO(detailIso);
+    const daysFromToday = Math.round(dateFromISO(detailIso).getTime() - dateFromISO(todayIso).getTime()) / 86400000);
+    const detailLabel = daysFromToday === 0
+        ? 'Today'
+        : daysFromToday === 1
+            ? 'Tomorrow'
+            : weekdayNameISO(detailIso);
 
     const myDetailRows =
         selectedSort === mySort
