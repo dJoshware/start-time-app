@@ -69,6 +69,7 @@ export default function SupervisorClient({
     const [newFullName, setNewFullName] = React.useState("");
     const [newPin, setNewPin] = React.useState("");
     const [newRole, setNewRole] = React.useState("");
+    const [newSchedule, setNewSchedule] = React.useState<'M-F' | 'T-S' | ''>("");
 
     // Employee table filters
     const [qName, setQName] = React.useState("");
@@ -226,6 +227,7 @@ export default function SupervisorClient({
             setNewPin("");
             setNewRole("employee");
             setNewArea(supervisorArea ?? "");
+            setNewSchedule('');
         }
         // On error, do nothing - fields stay as-is
     }, [userState]);
@@ -614,6 +616,20 @@ export default function SupervisorClient({
                                     </select>
                                 </div>
                             ) : null}
+                        </div>
+
+                        <div className='space-y-1'>
+                            <Label htmlFor='scheduleNew'>Schedule</Label>
+                            <select
+                                id='scheduleNew'
+                                name='schedule'
+                                value={newSchedule}
+                                onChange={e => setNewSchedule(e.target.value as any)}
+                                className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'>
+                                <option value=''>Not set</option>
+                                <option value='M-F'>M-F</option>
+                                <option value='T-S'>T-S</option>
+                            </select>
                         </div>
 
                         <div className='md:col-span-2'>
