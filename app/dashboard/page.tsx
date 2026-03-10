@@ -635,6 +635,9 @@ export default async function DashboardPage({
                                 <span className='block font-medium'>
                                     Your Area: {titleCase(normArea(user.area))}
                                 </span>
+                                <span className='block font-medium'>
+                                    Your Schedule: {titleCase(normArea(user.schedule ?? '—'))}
+                                </span>
                             </div>
                         </CardHeader>
 
