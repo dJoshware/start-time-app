@@ -653,7 +653,7 @@ export default async function DashboardPage({
                                     Your Area: {titleCase(normArea(user.area))}
                                 </span>
                                 <span className='block font-medium'>
-                                    Your Schedule: {user.schedule.toUpperCase() ?? '—'}
+                                    Your Schedule: <span className='uppercase'>{user.schedule ?? '—'}</span>
                                 </span>
                             </div>
                         </CardHeader>
