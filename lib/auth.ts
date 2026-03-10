@@ -13,6 +13,7 @@ export type SessionUser = {
     sort: string;
     area: string | null;
     sub_area: string | null;
+    schedule: 'M-F' | 'T-S' | null;
 };
 
 function sign(payload: string) {
@@ -67,7 +68,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
             active: boolean;
         }[]
     >`
-      select employee_id, role, full_name, sort, area, sub_area, active
+      select employee_id, role, full_name, sort, area, sub_area, active, schedule
       from users
       where employee_id = ${employeeId}
       limit 1
@@ -75,6 +76,6 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     const user = rows[0];
     if (!user?.active) return null;
 
-    const { employee_id, role, full_name, sort, area, sub_area } = user;
-    return { employee_id, role, full_name, sort, area, sub_area };
+    const { employee_id, role, full_name, sort, area, sub_area, schedule } = user;
+    return { employee_id, role, full_name, sort, area, sub_area, schedule };
 }
