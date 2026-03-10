@@ -242,6 +242,7 @@ export async function upsertUserAction(_prev: any, formData: FormData) {
 
     const area = String(formData.get('area') || '').trim();
     const subArea = String(formData.get('subArea') || '').trim();
+    const schedule = String(formData.get('schedule') || '').trim() || null;
 
     // Sort can be overridden only for specific supervisor IDs
     const requestedSort = String(formData.get('sort') || '').trim();
@@ -264,8 +265,8 @@ export async function upsertUserAction(_prev: any, formData: FormData) {
     const pinHash = await bcrypt.hash(pin, 10);
 
     await sql`
-    insert into users (employee_id, pin_hash, role, full_name, sort, area, sub_area)
-    values (${employeeId}, ${pinHash}, ${role}, ${fullName || null}, ${sortToUse}, ${area}, ${subArea || null})
+    insert into users (employee_id, pin_hash, role, full_name, sort, area, sub_area, schedule)
+    values (${employeeId}, ${pinHash}, ${role}, ${fullName || null}, ${sortToUse}, ${area}, ${subArea || null}, ${schedule})
     on conflict (employee_id) do update
       set pin_hash = excluded.pin_hash,
           role = excluded.role,
@@ -273,6 +274,7 @@ export async function upsertUserAction(_prev: any, formData: FormData) {
           sort = excluded.sort,
           area = excluded.area,
           sub_area = excluded.sub_area,
+          schedule = excluded.schedule,
           active = true
   `;
 
