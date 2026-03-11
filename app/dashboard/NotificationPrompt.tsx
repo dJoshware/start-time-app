@@ -9,6 +9,14 @@ export default function NotificationPrompt() {
     >("idle");
 
     React.useEffect(() => {
+        // Only show in standalone PWA mode
+        const isStandalone = ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true) || window.matchMedia("(display-mode: standalone)").matches;
+
+        if (!isStandalone) {
+            setState("unsupported");
+            return;
+        }
+        
         if (!("Notification" in window) || !("serviceWorker" in navigator)) {
             setState("unsupported");
             return;
