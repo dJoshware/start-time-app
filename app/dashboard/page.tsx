@@ -127,6 +127,16 @@ export default async function DashboardPage({
     const user = await getSessionUser();
     if (!user) redirect("/login");
 
+    // Update last_signed_in and sign_in_count on every visit
+    // Catches PWA users who stay signed in via long-lived session cookies
+    await sql`
+        update users
+        set
+            last_signed_in = now(),
+            sign_in_count = coalesce(sign_in_count, 0) + 1
+        where employee_id = ${user.employee_id}
+    `;
+
     const raw = String(sp.sort ?? user.sort);
     const selectedSortRaw = raw.trim().toLowerCase();
     const selectedSort = (SORTS as readonly string[]).includes(selectedSortRaw)
