@@ -135,6 +135,7 @@ export default async function DashboardPage({
             last_signed_in = now(),
             sign_in_count = coalesce(sign_in_count, 0) + 1
         where employee_id = ${user.employee_id}
+            and (last_signed_in is null or last_signed_in < now() - interval '1 hour')
     `;
 
     const raw = String(sp.sort ?? user.sort);
