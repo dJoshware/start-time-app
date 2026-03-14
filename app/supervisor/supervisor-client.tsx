@@ -322,11 +322,10 @@ export default function SupervisorClient({
             <Card>
                 <CardHeader>
                     <CardTitle className='text-base'>
-                        Set Start Time for{" "}
-                        {supervisorArea ? titleCase(supervisorArea) : ""}
+                        Set Start Times
                     </CardTitle>
                     <p className='text-sm text-muted-foreground'>
-                        This sets the start time for your work area.
+                        This sets the start times for areas in your sort
                     </p>
                 </CardHeader>
 
