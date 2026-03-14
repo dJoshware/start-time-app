@@ -17,7 +17,7 @@ export const AREA_MAP: Record<
         { label: 'unload' /* subAreas: [] */ },
         { label: 'smalls' /* subAreas: ["Debag", "SLS1", "SLS2", "SLS3", "SLS4"] */ },
         { label: 'tender' /* subAreas: [] */ },
-        { label: 'da' },
+        // { label: 'da' },
     ],
     sunrise: [
         { label: 'outbound' /* subAreas: [] */ },
