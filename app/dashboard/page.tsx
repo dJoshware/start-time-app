@@ -310,12 +310,12 @@ export default async function DashboardPage({
         while (true) {
             const wd = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' })
                 .format(dateFromISO(iso));
-            if (schedule === 'T-S') {
-                // T-S works Tue-Sat, off Sun-Mon
-                if (wd !== 'Sun' && wd !== 'Mon') return iso;
-            } else {
-                // M-F (or no schedule) works Mon-Fri, off Sat-Sun
+            if (schedule === 'M-F') {
+                // M-F works Mon-Fri, off Sat-Sun
                 if (wd !== 'Sat' && wd !== 'Sun') return iso;
+            } else {
+                // T-S (or no schedule) works Tue-Sat, off Sun-Mon
+                if (wd !== 'Sun' && wd !== 'Mon') return iso;
             }
             iso = addDaysISO(iso, 1);
         }
