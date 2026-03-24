@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import AutoSubmitSelect from "./AutoSubmitSelect";
 import NotificationPrompt from "./NotificationPrompt";
 import InstallPrompt from "./InstallPrompt";
+import ShareButton from "./ShareButton";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -300,35 +301,44 @@ export default async function DashboardPage({
     const hourNow = chicagoHour();
     const isAfterSort = hourNow >= BUSINESS_DAY_CUTOFF_HOUR;
     const baseIso = isAfterSort ? addDaysISO(todayIso, 1) : todayIso;
-    
+
     // Schedule-aware Sunday skipping
     // M-F employees skip Saturday -> Monday
     // T-S employees skip Sunday -> Tuesday
     // No schedule set -> default behaviour (skip to Monday)
-    function nextWorkdayForSchedule(fromIso: string, schedule: 'M-F' | 'T-S' | null): string {
+    function nextWorkdayForSchedule(
+        fromIso: string,
+        schedule: "M-F" | "T-S" | null,
+    ): string {
         let iso = fromIso;
         while (true) {
-            const wd = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short' })
-                .format(dateFromISO(iso));
-            if (schedule === 'M-F') {
+            const wd = new Intl.DateTimeFormat("en-US", {
+                timeZone: TZ,
+                weekday: "short",
+            }).format(dateFromISO(iso));
+            if (schedule === "M-F") {
                 // M-F works Mon-Fri, off Sat-Sun
-                if (wd !== 'Sat' && wd !== 'Sun') return iso;
+                if (wd !== "Sat" && wd !== "Sun") return iso;
             } else {
                 // T-S (or no schedule) works Tue-Sat, off Sun-Mon
-                if (wd !== 'Sun' && wd !== 'Mon') return iso;
+                if (wd !== "Sun" && wd !== "Mon") return iso;
             }
             iso = addDaysISO(iso, 1);
         }
     }
-    
+
     const detailIso = nextWorkdayForSchedule(baseIso, user.schedule);
     // Label
-    const daysFromToday = Math.round((dateFromISO(detailIso).getTime() - dateFromISO(todayIso).getTime()) / 86400000);
-    const detailLabel = daysFromToday === 0
-        ? 'Today'
-        : daysFromToday === 1
-            ? 'Tomorrow'
-            : weekdayNameISO(detailIso);
+    const daysFromToday = Math.round(
+        (dateFromISO(detailIso).getTime() - dateFromISO(todayIso).getTime()) /
+            86400000,
+    );
+    const detailLabel =
+        daysFromToday === 0
+            ? "Today"
+            : daysFromToday === 1
+              ? "Tomorrow"
+              : weekdayNameISO(detailIso);
 
     const myDetailRows =
         selectedSort === mySort
@@ -374,11 +384,15 @@ export default async function DashboardPage({
                     </p>
                 </div>
 
-                {user.role === "supervisor" ? (
-                    <Button asChild>
-                        <Link href='/supervisor'>Supervisor Panel</Link>
-                    </Button>
-                ) : null}
+                <div className='flex items-center gap-3'>
+                    <ShareButton />
+
+                    {user.role === "supervisor" ? (
+                        <Button asChild>
+                            <Link href='/supervisor'>Supervisor Panel</Link>
+                        </Button>
+                    ) : null}
+                </div>
             </header>
 
             <Separator className='my-6' />
@@ -494,16 +508,6 @@ export default async function DashboardPage({
                             const iso = addDaysISO(todayIso, i);
                             return { iso, row: mapForArea.get(iso) };
                         });
-                        console.log(
-                            "[Vertical scroller] areasOrdered:",
-                            areasOrdered,
-                        );
-                        console.log("[Vertical scroller] area:", area);
-                        console.log(
-                            "[Vertical scroller] mapForArea:",
-                            mapForArea,
-                        );
-                        console.log("[Vertical scroller] areaDays:", areaDays);
 
                         return (
                             <Card
@@ -664,7 +668,10 @@ export default async function DashboardPage({
                                     Your Area: {titleCase(normArea(user.area))}
                                 </span>
                                 <span className='block font-medium'>
-                                    Your Schedule: <span className='uppercase'>{user.schedule ?? '—'}</span>
+                                    Your Schedule:{" "}
+                                    <span className='uppercase'>
+                                        {user.schedule ?? "—"}
+                                    </span>
                                 </span>
                             </div>
                         </CardHeader>
