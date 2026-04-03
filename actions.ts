@@ -145,15 +145,13 @@ export async function upsertStartTimeAction(
     }
 
     for (const area of areas) {
-        for (const { date, time } of entries) {
-            await sendPush(
-                user.sort,
-                area,
-                'Start Time Updated',
-                `${area} start time set to ${time} on ${date}`,
-                '/dashboard',
-            );
-        }
+        await sendPush(
+            user.sort,
+            area,
+            'Start Times Updated',
+            'View start times for the coming week',
+            '/dashboard',
+        );
     }
 
     revalidatePath('/supervisor');
