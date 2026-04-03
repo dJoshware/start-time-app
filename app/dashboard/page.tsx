@@ -102,11 +102,11 @@ function isSundayISO(iso: string) {
     return weekday === "Sun";
 }
 
-function nextNonSundayISO(fromIso: string) {
-    let iso = addDaysISO(fromIso, 1);
-    while (isSundayISO(iso)) iso = addDaysISO(iso, 1);
-    return iso;
-}
+// function nextNonSundayISO(fromIso: string) {
+//     let iso = addDaysISO(fromIso, 1);
+//     while (isSundayISO(iso)) iso = addDaysISO(iso, 1);
+//     return iso;
+// }
 
 function weekdayNameISO(iso: string) {
     return new Intl.DateTimeFormat("en-US", {
@@ -369,6 +369,13 @@ export default async function DashboardPage({
 
     return (
         <main className='mx-auto w-full max-w-5xl px-4 py-10'>
+            {/* Hidden element for client components to read user sort */}
+            <span
+                id='user-sort-data'
+                data-sort={user.sort}
+                className='hidden'
+            />
+
             {/* Header */}
             <header className='flex items-start justify-between gap-4'>
                 <div>
