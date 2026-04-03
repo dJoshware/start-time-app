@@ -5,10 +5,9 @@ export async function sendPush(
     body: string,
     url = '/dashboard',
 ) {
-    const fnUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/send-push`;
     const secret = process.env.PUSH_SECRET;
 
-    await fetch(fnUrl, {
+    await fetch(`${process.env.VAPID_SUBJECT}/api/send-push`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
