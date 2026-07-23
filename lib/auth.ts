@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
 import { sql } from './db';
+import type { LocationConfig } from './helpers';
 
 const COOKIE_NAME = 'st_session';
 const SECRET = process.env.SESSION_SECRET!;
@@ -12,8 +13,9 @@ export type SessionUser = {
     full_name: string | null;
     sort: string;
     area: string | null;
-    sub_area: string | null;
-    schedule: 'M-F' | 'T-S' | null;
+    location_id: number;
+    location_name: string;
+    location_config: LocationConfig;
 };
 
 function sign(payload: string) {
@@ -64,19 +66,43 @@ export async function getSessionUser(): Promise<SessionUser | null> {
             full_name: string | null;
             sort: string;
             area: string | null;
-            sub_area: string | null;
             active: boolean;
-            schedule: 'M-F' | 'T-S' | null;
+            location_id: number;
+            location_name: string;
+            location_config: LocationConfig;
         }[]
     >`
-      select employee_id, role, full_name, sort, area, sub_area, active, schedule
-      from users
-      where employee_id = ${employeeId}
+      select
+        u.employee_id, u.role, u.full_name, u.sort, u.area, u.active,
+        u.location_id,
+        l.name as location_name,
+        l.config as location_config
+      from users u
+      join locations l on l.id = u.location_id
+      where u.employee_id = ${employeeId}
       limit 1
     `;
     const user = rows[0];
     if (!user?.active) return null;
 
-    const { employee_id, role, full_name, sort, area, sub_area, schedule } = user;
-    return { employee_id, role, full_name, sort, area, sub_area, schedule };
+    const {
+        employee_id,
+        role,
+        full_name,
+        sort,
+        area,
+        location_id,
+        location_name,
+        location_config,
+    } = user;
+    return {
+        employee_id,
+        role,
+        full_name,
+        sort,
+        area,
+        location_id,
+        location_name,
+        location_config,
+    };
 }

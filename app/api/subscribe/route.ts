@@ -29,11 +29,12 @@ export async function POST(req: NextRequest) {
     // Insert one row per sort
     for (const sort of targetSorts) {
         await sql`
-            INSERT INTO push_subscriptions (employee_id, sort, area, endpoint, p256dh, auth)
-            VALUES (${user.employee_id}, ${sort}, ${user.area}, ${endpoint}, ${keys.p256dh}, ${keys.auth})
+            INSERT INTO push_subscriptions (employee_id, sort, area, location_id, endpoint, p256dh, auth)
+            VALUES (${user.employee_id}, ${sort}, ${user.area}, ${user.location_id}, ${endpoint}, ${keys.p256dh}, ${keys.auth})
             ON CONFLICT (employee_id, endpoint, sort) DO UPDATE
                 SET p256dh = excluded.p256dh,
                     auth = excluded.auth,
+                    location_id = excluded.location_id,
                     updated_at = now()
         `;
     }

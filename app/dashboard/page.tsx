@@ -4,7 +4,7 @@ import { sql } from "@/lib/db";
 import {
     SORTS,
     type SortKey,
-    AREA_MAP,
+    areasForSort,
     titleCase,
     normArea,
     getAreaOrderForSort,
@@ -172,7 +172,8 @@ export default async function DashboardPage({
         u.full_name as updated_by_name
     from area_start_times st
     left join users u on u.employee_id = st.updated_by
-    where lower(trim(st.sort)) = ${selectedSort}
+    where st.location_id = ${user.location_id}
+        and lower(trim(st.sort)) = ${selectedSort}
         and st.work_date between ${windowStartIso}::date and ${windowEndIso}::date
     order by st.area asc, st.work_date asc
     `;
@@ -194,7 +195,8 @@ export default async function DashboardPage({
               >`
                 select work_date::text as work_date, area, start_time
                 from area_start_times
-                where lower(trim(sort)) = 'day'
+                where location_id = ${user.location_id}
+                and lower(trim(sort)) = 'day'
                 and work_date = any(${sundayIsos}::date[])
             `
             : [];
@@ -222,14 +224,14 @@ export default async function DashboardPage({
     const myAreaKey = normArea(user.area);
 
     // canonical list of areas for the selected sort
-    const canonicalAreas = getAreaOrderForSort(selectedSort);
+    const canonicalAreas = getAreaOrderForSort(user.location_config, selectedSort);
 
     // guarantee the UI has an entry for every area (even if DB has 0 rows)
     for (const area of canonicalAreas) {
         if (!byArea.has(area)) byArea.set(area, new Map());
     }
 
-    // UI order: AREA_MAP order, optionally pin "my area" only when viewing my sort
+    // UI order: location's configured area order, optionally pin "my area" only when viewing my sort
     const areasOrdered =
         viewingMySort && myAreaKey && canonicalAreas.includes(myAreaKey)
             ? [myAreaKey, ...canonicalAreas.filter(a => a !== myAreaKey)]
@@ -254,7 +256,8 @@ export default async function DashboardPage({
         u.full_name as updated_by_name
     from announcements a
     left join users u on u.employee_id = a.updated_by
-    where lower(trim(a.sort)) = ${selectedSort}
+    where a.location_id = ${user.location_id}
+        and lower(trim(a.sort)) = ${selectedSort}
         and a.area is not null
     order by
         lower(trim(a.area)),
@@ -262,13 +265,13 @@ export default async function DashboardPage({
         a.id desc
     `;
 
-    // AREA_MAP order for this sort
-    const areaOrder = (AREA_MAP[selectedSort] ?? []).map(a =>
-        normArea(a.label),
+    // configured area order for this sort at this location
+    const areaOrder = areasForSort(user.location_config, selectedSort).map(a =>
+        normArea(a),
     );
     const areaIndex = new Map(areaOrder.map((a, i) => [a, i]));
 
-    // Only announcements whose area exists in AREA_MAP for that sort
+    // Only announcements whose area exists in this location's config for that sort
     const orderedAnnouncementsStrict = annChoices
         .filter(a => areaIndex.has(normArea(a.area)))
         .sort((a, b) => {
@@ -287,7 +290,7 @@ export default async function DashboardPage({
         orderedAnnouncementsStrict.map(a => [normArea(a.area), a]),
     );
 
-    // Default = user's area in AREA_MAP order that has an announcement
+    // Default = user's area in configured area order that has an announcement
     const myAreaAnn = myAreaKey ? annLookup.get(myAreaKey) : undefined;
     const firstAreaAnn =
         areaOrder.map(a => annLookup.get(a)).find(Boolean) ??
@@ -301,44 +304,6 @@ export default async function DashboardPage({
     const hourNow = chicagoHour();
     const isAfterSort = hourNow >= BUSINESS_DAY_CUTOFF_HOUR;
     const baseIso = isAfterSort ? addDaysISO(todayIso, 1) : todayIso;
-
-    // Schedule-aware Sunday skipping
-    // M-F employees skip Saturday -> Monday
-    // T-S employees skip Sunday -> Tuesday
-    // No schedule set -> default behaviour (skip to Monday)
-    function nextWorkdayForSchedule(
-        fromIso: string,
-        schedule: "M-F" | "T-S" | null,
-    ): string {
-        let iso = fromIso;
-        while (true) {
-            const wd = new Intl.DateTimeFormat("en-US", {
-                timeZone: TZ,
-                weekday: "short",
-            }).format(dateFromISO(iso));
-            if (schedule === "M-F") {
-                // M-F works Mon-Fri, off Sat-Sun
-                if (wd !== "Sat" && wd !== "Sun") return iso;
-            } else {
-                // T-S (or no schedule) works Tue-Sat, off Sun-Mon
-                if (wd !== "Sun" && wd !== "Mon") return iso;
-            }
-            iso = addDaysISO(iso, 1);
-        }
-    }
-
-    const detailIso = nextWorkdayForSchedule(baseIso, user.schedule);
-    // Label
-    const daysFromToday = Math.round(
-        (dateFromISO(detailIso).getTime() - dateFromISO(todayIso).getTime()) /
-            86400000,
-    );
-    const detailLabel =
-        daysFromToday === 0
-            ? "Today"
-            : daysFromToday === 1
-              ? "Tomorrow"
-              : weekdayNameISO(detailIso);
 
     const myDetailRows =
         selectedSort === mySort
@@ -354,10 +319,100 @@ export default async function DashboardPage({
               >`
         select area, work_date::text as work_date, start_time, notes, updated_at
         from area_start_times
-        where lower(trim(sort)) = ${mySort}
+        where location_id = ${user.location_id}
+          and lower(trim(sort)) = ${mySort}
           and lower(trim(area)) = ${myAreaKey ?? ""}
           and work_date between ${windowStartIso}::date and ${windowEndIso}::date
       `;
+
+    // "Next sort" is data-driven per area/sort rather than a fixed weekday
+    // rule: pick the earliest upcoming date (>= baseIso) that already has a
+    // posted start time. If nothing's posted yet for the days ahead, fall
+    // back to whichever weekday was the first one with a posted time last
+    // week for this same area/sort.
+    const WEEKDAY_ORDER_MON_FIRST = [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun",
+    ];
+
+    function weekdayShortISO(iso: string) {
+        return new Intl.DateTimeFormat("en-US", {
+            timeZone: TZ,
+            weekday: "short",
+        }).format(dateFromISO(iso));
+    }
+
+    function nextOccurrenceOfWeekday(fromIso: string, targetWeekday: string) {
+        let iso = fromIso;
+        for (let i = 0; i < 7; i++) {
+            if (weekdayShortISO(iso) === targetWeekday) return iso;
+            iso = addDaysISO(iso, 1);
+        }
+        return fromIso;
+    }
+
+    const myUpcomingWithTime = myAreaKey
+        ? myDetailRows
+              .filter(
+                  r =>
+                      normArea(r.area) === myAreaKey &&
+                      r.start_time &&
+                      String(r.work_date).slice(0, 10) >= baseIso,
+              )
+              .sort((a, b) =>
+                  String(a.work_date).localeCompare(String(b.work_date)),
+              )
+        : [];
+
+    let detailIso = myUpcomingWithTime[0]
+        ? String(myUpcomingWithTime[0].work_date).slice(0, 10)
+        : null;
+
+    if (!detailIso && myAreaKey) {
+        const prevWeekStartIso = addDaysISO(windowStartIso, -7);
+        const prevWeekEndIso = addDaysISO(windowStartIso, -1);
+
+        const prevWeekRows = await sql<{ work_date: string }[]>`
+            select work_date::text as work_date
+            from area_start_times
+            where location_id = ${user.location_id}
+              and lower(trim(sort)) = ${mySort}
+              and lower(trim(area)) = ${myAreaKey}
+              and start_time is not null
+              and work_date between ${prevWeekStartIso}::date and ${prevWeekEndIso}::date
+        `;
+
+        if (prevWeekRows.length > 0) {
+            const weekdaysPresent = prevWeekRows.map(r =>
+                weekdayShortISO(String(r.work_date).slice(0, 10)),
+            );
+            const firstWeekdayOfWeek = weekdaysPresent.sort(
+                (a, b) =>
+                    WEEKDAY_ORDER_MON_FIRST.indexOf(a) -
+                    WEEKDAY_ORDER_MON_FIRST.indexOf(b),
+            )[0];
+            detailIso = nextOccurrenceOfWeekday(baseIso, firstWeekdayOfWeek);
+        }
+    }
+
+    detailIso = detailIso ?? baseIso;
+
+    // Label
+    const daysFromToday = Math.round(
+        (dateFromISO(detailIso).getTime() - dateFromISO(todayIso).getTime()) /
+            86400000,
+    );
+    const detailLabel =
+        daysFromToday === 0
+            ? "Today"
+            : daysFromToday === 1
+              ? "Tomorrow"
+              : weekdayNameISO(detailIso);
 
     const detailRow = myAreaKey
         ? myDetailRows.find(
@@ -673,12 +728,6 @@ export default async function DashboardPage({
                                 </span>
                                 <span className='block font-medium'>
                                     Your Area: {titleCase(normArea(user.area))}
-                                </span>
-                                <span className='block font-medium'>
-                                    Your Schedule:{" "}
-                                    <span className='uppercase'>
-                                        {user.schedule ?? "—"}
-                                    </span>
                                 </span>
                             </div>
                         </CardHeader>

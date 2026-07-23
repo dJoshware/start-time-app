@@ -1,4 +1,5 @@
 export async function sendPush(
+    locationId: number,
     sort: string,
     area: string,
     title: string,
@@ -13,6 +14,6 @@ export async function sendPush(
             'Content-Type': 'application/json',
             ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
         },
-        body: JSON.stringify({ sort, area, title, body, url }),
+        body: JSON.stringify({ locationId, sort, area, title, body, url }),
     }).catch(err => console.error('Push failed:', err));
 }

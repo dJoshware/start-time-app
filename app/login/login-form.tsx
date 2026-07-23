@@ -118,6 +118,15 @@ export default function LoginForm({
                             {isPending ? "Signing in..." : "Sign in"}
                         </Button>
                     </form>
+
+                    <p className='text-center text-sm text-muted-foreground'>
+                        New here?{" "}
+                        <a
+                            href='/register'
+                            className='font-medium text-blue-600 hover:underline'>
+                            Register
+                        </a>
+                    </p>
                 </CardContent>
             </Card>
         </main>

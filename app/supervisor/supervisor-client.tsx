@@ -8,8 +8,15 @@ import {
     upsertStartTimeAction,
     upsertUserAction,
     deleteUsersAction,
+    generateInviteCodeAction,
 } from "@/actions";
-import { type SortKey, AREA_MAP, titleCase, normArea } from "@/lib/helpers";
+import {
+    type SortKey,
+    type LocationConfig,
+    areasForSort,
+    titleCase,
+    normArea,
+} from "@/lib/helpers";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +42,7 @@ export default function SupervisorClient({
     supervisorName,
     supervisorSort,
     supervisorArea,
-    supervisorSubArea,
+    locationConfig,
     recent,
     employees,
 }: {
@@ -43,7 +50,7 @@ export default function SupervisorClient({
     supervisorName: string;
     supervisorSort: SortKey;
     supervisorArea: string | null;
-    supervisorSubArea: string | null;
+    locationConfig: LocationConfig;
     recent: RecentRow[];
     employees: EmployeeRow[];
 }) {
@@ -63,19 +70,21 @@ export default function SupervisorClient({
         deleteUsersAction,
         null,
     );
+    const [inviteState, inviteAction, invitePending] = React.useActionState(
+        generateInviteCodeAction,
+        null,
+    );
 
     // Controlled inputs for Add/Update Employee form
     const [newEmployeeId, setNewEmployeeId] = React.useState("");
     const [newFullName, setNewFullName] = React.useState("");
     const [newPin, setNewPin] = React.useState("");
     const [newRole, setNewRole] = React.useState("");
-    const [newSchedule, setNewSchedule] = React.useState<'M-F' | 'T-S' | ''>("");
 
     // Employee table filters
     const [qName, setQName] = React.useState("");
     const [qId, setQId] = React.useState("");
     const [qArea, setQArea] = React.useState("");
-    const [qSubArea, setQSubArea] = React.useState("");
     const [qRole, setQRole] = React.useState<"" | "employee" | "supervisor">(
         "",
     );
@@ -96,12 +105,14 @@ export default function SupervisorClient({
     // ADMIN: sort the NEW user will be created under
     const [newUserSort, setNewUserSort] =
         React.useState<SortKey>(supervisorSort);
-    const areasForSort = AREA_MAP[newUserSort] ?? [];
+    const areaOptionsForNewUser = areasForSort(locationConfig, newUserSort);
     const [newArea, setNewArea] = React.useState(supervisorArea ?? "");
-    const subAreasForNewArea =
-        areasForSort.find(a => a.label === newArea)?.subAreas ?? [];
     const [recentArea, setRecentArea] = React.useState<string>(
         supervisorArea ?? "",
+    );
+    const areaOptionsForSupervisorSort = areasForSort(
+        locationConfig,
+        supervisorSort,
     );
 
     const visibleRecent = React.useMemo(() => {
@@ -118,7 +129,6 @@ export default function SupervisorClient({
         const nName = normArea(qName);
         const nId = normArea(qId);
         const nArea = normArea(qArea);
-        const nSub = normArea(qSubArea);
         const targetSort = normArea(supervisorSort);
 
         return employeesForSort.filter(e => {
@@ -134,7 +144,6 @@ export default function SupervisorClient({
             if (qActive === "inactive" && e.active) return false;
 
             if (nArea && normArea(e.area) !== nArea) return false;
-            if (nSub && !normArea(e.sub_area).includes(nSub)) return false;
 
             return true;
         });
@@ -146,7 +155,6 @@ export default function SupervisorClient({
         qRole,
         qActive,
         qArea,
-        qSubArea,
     ]);
 
     function toggleSelected(id: string) {
@@ -201,10 +209,6 @@ export default function SupervisorClient({
     }
 
     React.useEffect(() => {
-        setQSubArea("");
-    }, [qArea]);
-
-    React.useEffect(() => {
         if (delState?.ok) {
             clearSelection();
             setIsEdit(false);
@@ -213,7 +217,7 @@ export default function SupervisorClient({
 
     // Keep newArea valid if sort changes
     React.useEffect(() => {
-        if (newArea && !areasForSort.some(a => a.label === newArea)) {
+        if (newArea && !areaOptionsForNewUser.includes(newArea)) {
             setNewArea("");
         }
     }, [newUserSort]); // intentionally not depending on newArea to avoid extra resets
@@ -227,7 +231,6 @@ export default function SupervisorClient({
             setNewPin("");
             setNewRole("employee");
             setNewArea(supervisorArea ?? "");
-            setNewSchedule('');
         }
         // On error, do nothing - fields stay as-is
     }, [userState]);
@@ -255,6 +258,52 @@ export default function SupervisorClient({
             </header>
 
             <Separator />
+
+            {/* Supervisor invite codes */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className='text-base'>
+                        Invite a Supervisor
+                    </CardTitle>
+                    <p className='text-sm text-muted-foreground'>
+                        Generate a one-time code so another supervisor at
+                        your hub can register with supervisor access. Codes
+                        expire after 14 days.
+                    </p>
+                </CardHeader>
+                <CardContent className='space-y-3'>
+                    {inviteState?.ok === false ? (
+                        <Alert className='bg-red-400'>
+                            <AlertTitle>Couldn’t generate code</AlertTitle>
+                            <AlertDescription>
+                                {inviteState.message}
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    {inviteState?.ok === true ? (
+                        <Alert className='bg-green-300'>
+                            <AlertTitle>Code ready</AlertTitle>
+                            <AlertDescription className='space-y-1'>
+                                <div className='text-lg font-mono font-semibold tracking-widest'>
+                                    {inviteState.code}
+                                </div>
+                                <div>{inviteState.message}</div>
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
+
+                    <form action={inviteAction}>
+                        <Button
+                            type='submit'
+                            disabled={invitePending}>
+                            {invitePending
+                                ? "Generating..."
+                                : "Generate Invite Code"}
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
 
             {/* Announcement */}
             <Card>
@@ -345,19 +394,17 @@ export default function SupervisorClient({
                         <div className='space-y-2'>
                             <Label>Apply to areas</Label>
                             <div className='grid gap-2 sm:grid-cols-2'>
-                                {areasForSort.map(a => (
+                                {areaOptionsForSupervisorSort.map(a => (
                                     <label
-                                        key={a.label}
+                                        key={a}
                                         className='flex items-center gap-2 text-sm'>
                                         <input
                                             type='checkbox'
                                             name='areas'
-                                            value={a.label}
+                                            value={a}
                                             defaultChecked={false}
                                         />
-                                        {a.label === "da"
-                                            ? "DA"
-                                            : titleCase(a.label)}
+                                        {a === "da" ? "DA" : titleCase(a)}
                                     </label>
                                 ))}
                             </div>
@@ -543,7 +590,7 @@ export default function SupervisorClient({
                                                 e.target.value as SortKey,
                                             )
                                         }>
-                                        {Object.keys(AREA_MAP).map(s => (
+                                        {(locationConfig.sorts ?? []).map(s => (
                                             <option
                                                 key={s}
                                                 value={s}>
@@ -581,53 +628,13 @@ export default function SupervisorClient({
                                 onChange={e => setNewArea(e.target.value)}
                                 className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'>
                                 <option value=''>Select area</option>
-                                {areasForSort.map(a => (
+                                {areaOptionsForNewUser.map(a => (
                                     <option
-                                        key={a.label}
-                                        value={a.label}>
-                                        {a.label === "da"
-                                            ? "DA"
-                                            : titleCase(a.label)}
+                                        key={a}
+                                        value={a}>
+                                        {a === "da" ? "DA" : titleCase(a)}
                                     </option>
                                 ))}
-                            </select>
-                        </div>
-
-                        <div className='space-y-1'>
-                            {subAreasForNewArea.length > 0 ? (
-                                <div className='space-y-1'>
-                                    <Label htmlFor='subAreaNew'>Sub-Area</Label>
-                                    <select
-                                        id='subAreaNew'
-                                        name='subArea'
-                                        className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'
-                                        defaultValue={supervisorSubArea ?? ""}>
-                                        <option value=''>
-                                            Select sub-area
-                                        </option>
-                                        {subAreasForNewArea.map(sa => (
-                                            <option
-                                                key={sa}
-                                                value={sa}>
-                                                {titleCase(sa)}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            ) : null}
-                        </div>
-
-                        <div className='space-y-1'>
-                            <Label htmlFor='scheduleNew'>Schedule</Label>
-                            <select
-                                id='scheduleNew'
-                                name='schedule'
-                                value={newSchedule}
-                                onChange={e => setNewSchedule(e.target.value as any)}
-                                className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'>
-                                <option value=''>Not set</option>
-                                <option value='M-F'>M-F</option>
-                                <option value='T-S'>T-S</option>
                             </select>
                         </div>
 
@@ -652,11 +659,11 @@ export default function SupervisorClient({
                         value={recentArea}
                         onChange={e => setRecentArea(e.target.value)}>
                         <option value=''>Sort-wide</option>
-                        {areasForSort.map(a => (
+                        {areaOptionsForSupervisorSort.map(a => (
                             <option
-                                key={a.label}
-                                value={a.label}>
-                                {a.label === "da" ? "DA" : titleCase(a.label)}
+                                key={a}
+                                value={a}>
+                                {a === "da" ? "DA" : titleCase(a)}
                             </option>
                         ))}
                     </select>
@@ -777,39 +784,11 @@ export default function SupervisorClient({
                                 value={qArea}
                                 onChange={e => setQArea(e.target.value as any)}>
                                 <option value=''>All</option>
-                                {areasForSort.map(a => (
+                                {areaOptionsForSupervisorSort.map(a => (
                                     <option
-                                        key={a.label}
-                                        value={normArea(a.label)}>
-                                        {a.label === "da"
-                                            ? "DA"
-                                            : titleCase(a.label)}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className='space-y-1'>
-                            <Label htmlFor='filterSubArea'>Sub-Area</Label>
-                            <select
-                                id='filterSubArea'
-                                className='h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm'
-                                value={qSubArea}
-                                onChange={e =>
-                                    setQSubArea(e.target.value as any)
-                                }>
-                                <option value=''>All</option>
-                                {(
-                                    areasForSort.find(
-                                        a =>
-                                            normArea(a.label) ===
-                                            normArea(qArea),
-                                    )?.subAreas ?? []
-                                ).map(sa => (
-                                    <option
-                                        key={sa}
-                                        value={normArea(sa)}>
-                                        {titleCase(sa)}
+                                        key={a}
+                                        value={normArea(a)}>
+                                        {a === "da" ? "DA" : titleCase(a)}
                                     </option>
                                 ))}
                             </select>
@@ -887,8 +866,6 @@ export default function SupervisorClient({
                                     <TableHead>Name</TableHead>
                                     <TableHead>Employee ID</TableHead>
                                     <TableHead>Area</TableHead>
-                                    <TableHead>Sub-Area</TableHead>
-                                    <TableHead>Schedule</TableHead>
                                     <TableHead>Role</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Added</TableHead>
@@ -932,14 +909,6 @@ export default function SupervisorClient({
                                                 {e.area
                                                     ? titleCase(e.area)
                                                     : "—"}
-                                            </TableCell>
-                                            <TableCell>
-                                                {e.sub_area
-                                                    ? titleCase(e.sub_area)
-                                                    : "—"}
-                                            </TableCell>
-                                            <TableCell>
-                                                {e.schedule ?? ''}
                                             </TableCell>
                                             <TableCell className='capitalize'>
                                                 {e.role}
@@ -995,7 +964,7 @@ export default function SupervisorClient({
                                 {filteredEmployees.length === 0 ? (
                                     <TableRow>
                                         <TableCell
-                                            colSpan={isEdit ? 11 : 10}
+                                            colSpan={isEdit ? 9 : 8}
                                             className='text-sm text-muted-foreground'>
                                             No employees match your filters.
                                         </TableCell>

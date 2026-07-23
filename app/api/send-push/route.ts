@@ -20,11 +20,11 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    const { sort, area, title, body, url } = await req.json();
+    const { locationId, sort, area, title, body, url } = await req.json();
 
-    if (!sort || !area || !title) {
+    if (!locationId || !sort || !area || !title) {
         return NextResponse.json(
-            { error: 'sort, area, and title are required' },
+            { error: 'locationId, sort, area, and title are required' },
             { status: 400 },
         );
     }
@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
     >`
         SELECT endpoint, p256dh, auth
         FROM push_subscriptions
-        WHERE lower(trim(sort)) = ${sort.toLowerCase().trim()}
+        WHERE location_id = ${locationId}
+          AND lower(trim(sort)) = ${sort.toLowerCase().trim()}
           AND lower(trim(area)) = ${area.toLowerCase().trim()}
     `;
 

@@ -3,15 +3,16 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db';
-import { AREA_MAP, normArea } from '@/lib/helpers';
+import { SORTS, areasForSort, normArea, type LocationConfig } from '@/lib/helpers';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { setSession, getSessionUser } from '@/lib/auth';
 import { sendPush } from './lib/push';
 
 const SORT_OVERRIDE_IDS = new Set(['7255540']); // must match client-side check in supervisor-client.tsx
 
-function bad(message: string) {
-    return { ok: false as const, message };
+function bad(message: string, field?: string) {
+    return { ok: false as const, message, field };
 }
 
 export type LoginState =
@@ -26,13 +27,17 @@ async function requireSupervisor() {
     });
 }
 
-function canonicalAreaLabel(sort: string, input: string): string | null {
-    const options = AREA_MAP[sort as keyof typeof AREA_MAP] ?? [];
+function canonicalAreaLabel(
+    config: LocationConfig,
+    sort: string,
+    input: string,
+): string | null {
+    const options = areasForSort(config, sort);
     const want = normArea(input);
 
-    // match against AREA_MAP labels (case/space insensitive)
-    const hit = options.find(o => normArea(o.label) === want);
-    return hit ? hit.label : null;
+    // match against configured area labels (case/space insensitive)
+    const hit = options.find(o => normArea(o) === want);
+    return hit ?? null;
 }
 
 export async function setAnnouncementAction(
@@ -53,7 +58,7 @@ export async function setAnnouncementAction(
 
     // Determine which areas to target
     const targetAreas = allAreas
-        ? (AREA_MAP[user.sort as keyof typeof AREA_MAP] ?? []).map(a => a.label)
+        ? areasForSort(user.location_config, user.sort)
         : [user.area];
 
     if (targetAreas.length === 0)
@@ -62,10 +67,11 @@ export async function setAnnouncementAction(
     // Loop through and insert for every area
     for (const area of targetAreas) {
         await sql`
-            insert into announcements (message, updated_by, sort, area, updated_at)
-            values (${message}, ${user.employee_id}, ${user.sort}, ${area}, now())
+            insert into announcements (message, updated_by, sort, area, location_id, updated_at)
+            values (${message}, ${user.employee_id}, ${user.sort}, ${area}, ${user.location_id}, now())
         `;
         await sendPush(
+            user.location_id,
             user.sort,
             area,
             'New Announcement',
@@ -120,7 +126,7 @@ export async function upsertStartTimeAction(
     const areas = Array.from(
         new Set(
             rawAreas
-                .map(a => canonicalAreaLabel(user.sort, a))
+                .map(a => canonicalAreaLabel(user.location_config, user.sort, a))
                 .filter(Boolean) as string[],
         ),
     );
@@ -132,10 +138,10 @@ export async function upsertStartTimeAction(
         for (const { date, time } of entries) {
             await sql`
                 insert into area_start_times
-                    (sort, area, work_date, start_time, notes, updated_by, updated_at)
+                    (sort, area, location_id, work_date, start_time, notes, updated_by, updated_at)
                 values
-                    (${user.sort}, ${area}, ${date}::date, ${time}::time, ${notesRaw || null}, ${user.employee_id}, now())
-                on conflict (sort, area, work_date) do update
+                    (${user.sort}, ${area}, ${user.location_id}, ${date}::date, ${time}::time, ${notesRaw || null}, ${user.employee_id}, now())
+                on conflict (location_id, sort, area, work_date) do update
                     set start_time = excluded.start_time,
                         notes = excluded.notes,
                         updated_by = excluded.updated_by,
@@ -146,6 +152,7 @@ export async function upsertStartTimeAction(
 
     for (const area of areas) {
         await sendPush(
+            user.location_id,
             user.sort,
             area,
             'Start Times Updated',
@@ -239,8 +246,6 @@ export async function upsertUserAction(_prev: any, formData: FormData) {
     const fullName = String(formData.get('fullName') || '').trim();
 
     const area = String(formData.get('area') || '').trim();
-    const subArea = String(formData.get('subArea') || '').trim();
-    const schedule = String(formData.get('schedule') || '').trim() || null;
 
     // Sort can be overridden only for specific supervisor IDs
     const requestedSort = String(formData.get('sort') || '').trim();
@@ -257,22 +262,19 @@ export async function upsertUserAction(_prev: any, formData: FormData) {
 
     if (!sortToUse) return bad('Your account is missing a sort.');
     if (!area) return bad('Area is required.');
-    if (!me.sort) return bad('Your account is missing a sort.');
-    if (!area) return bad('Area is required.');
 
     const pinHash = await bcrypt.hash(pin, 10);
 
     await sql`
-    insert into users (employee_id, pin_hash, role, full_name, sort, area, sub_area, schedule)
-    values (${employeeId}, ${pinHash}, ${role}, ${fullName || null}, ${sortToUse}, ${area}, ${subArea || null}, ${schedule})
+    insert into users (employee_id, pin_hash, role, full_name, sort, area, location_id)
+    values (${employeeId}, ${pinHash}, ${role}, ${fullName || null}, ${sortToUse}, ${area}, ${me.location_id})
     on conflict (employee_id) do update
       set pin_hash = excluded.pin_hash,
           role = excluded.role,
           full_name = excluded.full_name,
           sort = excluded.sort,
           area = excluded.area,
-          sub_area = excluded.sub_area,
-          schedule = excluded.schedule,
+          location_id = excluded.location_id,
           active = true
   `;
 
@@ -317,6 +319,7 @@ export async function deleteUsersAction(
         await sql`
             delete from users
             where employee_id = any(${employeeIds}::text[])
+                and location_id = ${me.location_id}
                 and sort = ${me.sort}
                 and area = ${me.area}
             `;
@@ -331,4 +334,114 @@ export async function deleteUsersAction(
 
     revalidatePath('/supervisor');
     return { ok: true, message: `Deleted ${employeeIds.length} user(s).` };
+}
+
+export type RegisterState =
+    | { ok: true }
+    | { ok: false; message: string; field?: string };
+
+export async function registerAction(
+    _prevState: RegisterState | null,
+    formData: FormData,
+): Promise<RegisterState> {
+    const employeeId = String(formData.get('employeeId') || '').trim();
+    const pin = String(formData.get('pin') || '').trim();
+    const fullName = String(formData.get('fullName') || '').trim();
+    const role = String(formData.get('role') || 'employee').trim() as
+        | 'employee'
+        | 'supervisor';
+    const sort = String(formData.get('sort') || '').trim();
+    const area = String(formData.get('area') || '').trim();
+    const inviteCode = String(formData.get('inviteCode') || '').trim();
+    const isPWA = formData.get('isPWA') === 'true';
+    const locationId = Number(formData.get('locationId'));
+
+    if (!/^\d{7}$/.test(employeeId))
+        return bad('Employee ID must be 7 digits.');
+    if (!/^\d{4,8}$/.test(pin)) return bad('PIN must be 4–8 digits.');
+    if (role !== 'employee' && role !== 'supervisor')
+        return bad('Role must be employee or supervisor.');
+    if (!Number.isInteger(locationId))
+        return bad('Please select a location.');
+    if (!(SORTS as readonly string[]).includes(sort))
+        return bad('Please select a valid sort.');
+
+    const existing = await sql<{ employee_id: string }[]>`
+        select employee_id from users where employee_id = ${employeeId} limit 1
+    `;
+    if (existing.length > 0) {
+        return bad(
+            'This employee ID is already registered. Try signing in instead.',
+        );
+    }
+
+    const locationRows = await sql<
+        { id: number; active: boolean; config: LocationConfig }[]
+    >`
+        select id, active, config from locations where id = ${locationId} limit 1
+    `;
+    const location = locationRows[0];
+    if (!location || !location.active) return bad('Invalid location.');
+
+    const canonicalArea = canonicalAreaLabel(location.config, sort, area);
+    if (!canonicalArea) return bad('Please select a valid area for this sort.');
+
+    const pinHash = await bcrypt.hash(pin, 10);
+
+    if (role === 'supervisor') {
+        if (!inviteCode) {
+            return bad(
+                'A supervisor invite code is required to register as a supervisor.',
+                'inviteCode',
+            );
+        }
+
+        const consumed = await sql<{ id: number }[]>`
+            update invite_codes
+            set used_count = used_count + 1
+            where code = ${inviteCode}
+                and location_id = ${locationId}
+                and role = 'supervisor'
+                and active = true
+                and used_count < max_uses
+                and (expires_at is null or expires_at > now())
+            returning id
+        `;
+        if (consumed.length === 0) {
+            return bad('Invalid or expired invite code.', 'inviteCode');
+        }
+    }
+
+    await sql`
+        insert into users (employee_id, pin_hash, role, full_name, sort, area, location_id, active)
+        values (${employeeId}, ${pinHash}, ${role}, ${fullName || null}, ${sort}, ${canonicalArea}, ${locationId}, true)
+    `;
+
+    await setSession(employeeId, isPWA);
+    redirect('/dashboard');
+}
+
+export type InviteCodeState =
+    | { ok: true; code: string; message: string }
+    | { ok: false; message: string };
+
+export async function generateInviteCodeAction(
+    _prev: InviteCodeState | null,
+    _formData: FormData,
+): Promise<InviteCodeState> {
+    const me = await requireSupervisor();
+
+    const code = crypto.randomBytes(5).toString('hex').toUpperCase();
+
+    await sql`
+        insert into invite_codes (location_id, code, role, created_by, expires_at, max_uses)
+        values (${me.location_id}, ${code}, 'supervisor', ${me.employee_id}, now() + interval '14 days', 1)
+    `;
+
+    revalidatePath('/supervisor');
+    return {
+        ok: true,
+        code,
+        message: `Invite code ${code} created — valid 14 days, single use.`,
+    };
 }

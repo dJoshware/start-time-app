@@ -3,7 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { sql } from "@/lib/db";
 import { redirect } from "next/navigation";
 import SupervisorClient from "./supervisor-client";
-import { type SortKey } from "@/lib/helpers";
+import { type SortKey, type LocationConfig } from "@/lib/helpers";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,8 +30,6 @@ export type EmployeeRow = {
     sign_in_count: number;
     sort: string;
     area: string | null;
-    sub_area: string | null;
-    schedule: 'M-F' | 'T-S' | null;
 };
 
 export default async function SupervisorPage({
@@ -63,7 +61,8 @@ export default async function SupervisorPage({
             coalesce(st.updated_by, '') as employee_id
         from area_start_times st
         left join users u on u.employee_id = st.updated_by
-        where st.sort = ${user.sort}
+        where st.location_id = ${user.location_id}
+            and st.sort = ${user.sort}
             ${areaFilter ? sql`and st.area = ${areaFilter}` : sql``}
         order by st.updated_at desc
         limit 20
@@ -79,11 +78,10 @@ export default async function SupervisorPage({
             last_signed_in,
             sign_in_count,
             sort,
-            area,
-            sub_area,
-            schedule
+            area
         from users
-        where lower(trim(sort)) = lower(trim(${user.sort}))
+        where location_id = ${user.location_id}
+            and lower(trim(sort)) = lower(trim(${user.sort}))
         order by created_at desc
     `;
 
@@ -93,7 +91,7 @@ export default async function SupervisorPage({
             supervisorName={user.full_name ?? "Supervisor"}
             supervisorSort={user.sort as SortKey}
             supervisorArea={user.area}
-            supervisorSubArea={user.sub_area}
+            locationConfig={user.location_config as LocationConfig}
             recent={recent}
             employees={employees}
         />
